@@ -1,0 +1,38 @@
+- config:
+    ACCUMUL_SIZE: 32
+    DECAY_EVERY_N_EPOCHS: 1
+    LR: 0.0001
+    LR_DECAY: 0.995
+    batch_size: 4
+    batch_size_eval: 20
+    beta1: 0.9
+    beta2: 0.999
+    crop_size: 713
+    crop_size_eval: 713, 950
+    dataset: rescuenet_resized
+    dataset_scale: 713
+    factor: 0.5
+    notes: ''
+    patience: 5
+    weight_decay: 0.0001
+  epoch: 0
+  hash: 9550f8321127a461cdfb109c2fab94e1936298e6150289f4c8d9a5ddf60ca6c5
+- config:
+    ACCUMUL_SIZE: 32
+    DECAY_EVERY_N_EPOCHS: 1
+    LR: 0.0001
+    LR_DECAY: 0.995
+    batch_size: 4
+    batch_size_eval: 20
+    beta1: 0.9
+    beta2: 0.999
+    crop_size: 713
+    crop_size_eval: 713, 950
+    dataset: rescuenet_resized
+    dataset_scale: 713
+    factor: 0.5
+    notes: ''
+    patience: 5
+    weight_decay: 0.001
+  epoch: 400
+  hash: 900928202d3adf144759b50845bec2ce640b048faf2e32e2ea45047ac488882f

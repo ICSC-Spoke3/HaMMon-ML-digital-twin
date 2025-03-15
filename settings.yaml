@@ -1,0 +1,4 @@
+current_experiment: sample # none for no experiment
+scripts_root_folder: .runs
+results_root_folder: .runs
+weights_root_folder: .weights
