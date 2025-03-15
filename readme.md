@@ -8,7 +8,7 @@ This project is based on the original model described in the paper:
 
 Jégou, S., Drozdzal, M., Vazquez, D., Romero, A., & Bengio, Y. (2017). "The One Hundred Layers Tiramisu: Fully Convolutional DenseNets for Semantic Segmentation." *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR) Workshops*. Available at [arXiv:1611.09326](https://arxiv.org/abs/1611.09326).
 
-The base model and several training utilities have been derived from the [PyTorch Tiramisu repository](https://github.com/bfortuner/pytorch_tiramisu). Many thanks to the original authors for their contributions.
+The base model and several training utilities have been derived from the [PyTorch Tiramisu repository](https://github.com/bfortuner/pytorch_tiramisu). Many thanks to the authors for their contributions.
 
 The model has been applied to two UAV image datasets related to natural hazard scenarios, [FloodNet](https://arxiv.org/abs/2012.02951) and [RescueNet](https://www.nature.com/articles/s41597-023-02799-4), and has been further adapted into a one-dimensional version for a dataset focused on detecting cracks in concrete surfaces.
 
