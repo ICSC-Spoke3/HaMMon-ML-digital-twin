@@ -15,14 +15,14 @@ else:
     from .tools import memprint
 
 
+# ----------------------------------------------------------------------  utilities
+
 def get_predictions(output_batch):
     # "c" is the number of channels=classes
     bs,c,h,w = output_batch.size()
     tensor = output_batch.data
-    #values, indices = tensor.cpu().max(1)
     values, indices = tensor.max(1)
     indices = indices.view(bs,h,w)
-    #print('indices',indices)
     return indices
 
 def error(preds, targets):
@@ -30,11 +30,35 @@ def error(preds, targets):
     bs,h,w = preds.size()
     n_pixels = bs*h*w
     incorrect = preds.ne(targets).cpu().sum()
-    #print('incorrect', incorrect)
     err = incorrect/n_pixels
-    #print('pixels', n_pixels, 'error', err)
-    # return torch.round(err) this would return 0 everytime
     return err
+
+def adjust_learning_rate(lr, decay, optimizer, cur_epoch, n_epochs):
+    """Sets the learning rate to the initially
+        configured `lr` decayed by `decay` every `n_epochs`"""
+    new_lr = lr * (decay ** (cur_epoch // n_epochs))
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = new_lr
+
+def weights_init(m):
+    if isinstance(m, nn.Conv2d):
+        nn.init.kaiming_uniform_(m.weight)
+        m.bias.data.zero_()
+
+def inverse_frequency_weights(n):
+    arr = torch.tensor(n, dtype=torch.float32)
+    frequencies = arr / arr.sum()
+    weights = 1 / frequencies  # Inverse of the frequencies
+    return weights
+
+def median_frequency_weights(n):
+    arr = torch.tensor(n, dtype=torch.float32)
+    frequencies = arr / arr.sum()
+    median_freq = torch.median(frequencies)  # Get the median of the frequencies
+    weights = median_freq / frequencies      # Median frequency divided by each frequency
+    return weights
+
+# ----------------------------------------------------------------------  training
 
 def train(model, trn_loader,num_classes, optimizer, criterion, device):
     model.train()
@@ -87,6 +111,8 @@ def train(model, trn_loader,num_classes, optimizer, criterion, device):
     return trn_loss, trn_error, iou_result
 
 
+# ----------------------------------------------------------------------  test
+
 def test(model, test_loader, num_classes, criterion, device):
     since = time.time()
 
@@ -98,9 +124,7 @@ def test(model, test_loader, num_classes, criterion, device):
 
 
     memprint("before iterat")
-    iou = IoU(task='multiclass', num_classes=num_classes, average="none")
-    
-    iou.to(device)
+    iou = IoU(task='multiclass', num_classes=num_classes, average="none").to(device)
 
     #for data, target in tqdm(test_loader, desc="Processing"):
 
@@ -153,41 +177,3 @@ def test(model, test_loader, num_classes, criterion, device):
     return test_loss, test_error, iou_result
 
 
-
-def adjust_learning_rate(lr, decay, optimizer, cur_epoch, n_epochs):
-    """Sets the learning rate to the initially
-        configured `lr` decayed by `decay` every `n_epochs`"""
-    new_lr = lr * (decay ** (cur_epoch // n_epochs))
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = new_lr
-
-def weights_init(m):
-    if isinstance(m, nn.Conv2d):
-        nn.init.kaiming_uniform_(m.weight)
-        m.bias.data.zero_()
-
-def predict(model, input_loader, device, n_batches=1):
-    input_loader.batch_size = 1
-    predictions = []
-    model.eval()
-    for input, target in input_loader:
-        data = Variable(input.to(device), volatile=True)
-        label = Variable(target.to(device))
-        output = model(data)
-        pred = get_predictions(output)
-        predictions.append([input,target,pred])
-    return predictions
-
-
-def inverse_frequency_weights(n):
-    arr = torch.tensor(n, dtype=torch.float32)
-    frequencies = arr / arr.sum()
-    weights = 1 / frequencies  # Inverse of the frequencies
-    return weights
-
-def median_frequency_weights(n):
-    arr = torch.tensor(n, dtype=torch.float32)
-    frequencies = arr / arr.sum()
-    median_freq = torch.median(frequencies)  # Get the median of the frequencies
-    weights = median_freq / frequencies      # Median frequency divided by each frequency
-    return weights
