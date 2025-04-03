@@ -17,7 +17,7 @@ from PIL import Image, ImageOps
 from pathlib import Path
 from multiprocessing import Pool, cpu_count
 import argparse
-import sys
+
 
 # Function to get image dimensions (width, height)
 def get_image_size(image_path):
