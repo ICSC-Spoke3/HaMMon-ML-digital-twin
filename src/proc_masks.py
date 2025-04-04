@@ -1,12 +1,30 @@
-# Utility script for working with segmentation masks in PNG format.
-# Provides tools to validate masks and extract binary masks for specific labels.
-# Supports multiprocessing and command-line usage with 'check' and 'extract' commands.
+"""
+proc_masks.py
+
+Utility functions for validating and manipulating PNG segmentation masks.
+
+This module includes:
+
+Validation utilities:
+- load_and_check(image_path, min_val, max_val): Loads a .png mask and checks that it is valid (2D, within value range).
+- check_folder(input_path, min_val, max_val): Validates all .png masks in a folder using multiprocessing.
+
+Binary mask extraction:
+- create_binary_mask(img_np, label, output_path): Creates a binary mask from a specific label in the input mask.
+- process_folder(input_path, label_name, label_index): Processes all masks in a folder and extracts binary masks for a given label.
+
+Internal helper functions (used for multiprocessing):
+- _check_file(args): Wrapper for safely checking a single file.
+- _process_file(args): Loads, extracts, and saves a binary mask from a single file.
+
+All operations assume input masks are grayscale PNGs with integer labels.
+"""
+
 
 from PIL import Image
 import numpy as np
 from pathlib import Path
 from multiprocessing import Pool, cpu_count
-import argparse
 
 def load_and_check(image_path, min_val, max_val):
     """
@@ -130,24 +148,3 @@ def process_folder(input_path, label_name, label_index):
         pool.map(_process_file, args_list)
 
     print(f"Binary masks saved to '{output_dir}'")
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Segmentation mask utility")
-    subparsers = parser.add_subparsers(dest="command", required=True)
-
-    check_parser = subparsers.add_parser("check", help="Check all masks in a folder")
-    check_parser.add_argument("input", type=Path, help="Path to folder with PNG masks")
-    check_parser.add_argument("min", type=int, help="Minimum pixel value allowed")
-    check_parser.add_argument("max", type=int, help="Maximum pixel value allowed")
-
-    extract_parser = subparsers.add_parser("extract", help="Extract binary masks for a label")
-    extract_parser.add_argument("input", type=Path, help="Path to folder with PNG masks")
-    extract_parser.add_argument("labelname", type=str, help="Label name (for output folder)")
-    extract_parser.add_argument("labelindex", type=int, help="Label index to extract")
-
-    args = parser.parse_args()
-
-    if args.command == "check":
-        check_folder(args.input, args.min, args.max)
-    elif args.command == "extract":
-        process_folder(args.input, args.labelname, args.labelindex)
