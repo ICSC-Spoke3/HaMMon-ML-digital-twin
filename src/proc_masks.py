@@ -170,4 +170,4 @@ def process_folder(input_folder, output_folder, label_index):
     with Pool(cpu_count()) as pool:
         pool.map(_process_file, args_list)
 
-    print(f"Binary masks saved to '{output_path}'")
+    print(f"Binary masks saved to '{output_folder}'")
