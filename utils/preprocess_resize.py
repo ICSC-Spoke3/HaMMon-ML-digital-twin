@@ -16,7 +16,8 @@ from pathlib import Path
 
 import sys
 import os
-root_dir = os.path.abspath(os.path.join(os.getcwd(), ".."))
+# root_dir = os.path.abspath(os.path.join(os.getcwd(), ".."))
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(root_dir)
 
 from src.proc_imgs import check_folder_image_sizes, resize_images
