@@ -13,10 +13,6 @@ Binary mask extraction:
 - create_binary_mask(img_np, label, output_path): Creates a binary mask from a specific label in the input mask.
 - process_folder(input_path, label_name, label_index): Processes all masks in a folder and extracts binary masks for a given label.
 
-Internal helper functions (used for multiprocessing):
-- _check_file(args): Wrapper for safely checking a single file.
-- _process_file(args): Loads, extracts, and saves a binary mask from a single file.
-
 All operations assume input masks are grayscale PNGs with integer labels.
 """
 
@@ -26,7 +22,8 @@ import numpy as np
 from pathlib import Path
 from multiprocessing import Pool, cpu_count
 
-def load_and_check(image_path, min_val, max_val):
+
+def check(image_path, min_val, max_val):
     """
     Load image and verify it is a valid segmentation mask:
     - Must be a .png file
@@ -47,7 +44,12 @@ def load_and_check(image_path, min_val, max_val):
     if image_path.suffix.lower() != ".png":
         raise ValueError(f"Only .png files are supported (got '{image_path.name}')")
 
-    img = Image.open(image_path)
+    try:
+        img = Image.open(image_path)
+        img.load()  # Ensure image is loaded
+    except Exception as e:
+        raise ValueError(f"Failed to open image '{image_path}'") from e
+
     img_np = np.array(img)
 
     if img_np.ndim != 2:
@@ -58,41 +60,12 @@ def load_and_check(image_path, min_val, max_val):
             f"Pixel values out of range in '{image_path}': found [{img_np.min()}, {img_np.max()}], expected [{min_val}, {max_val}]"
         )
 
-    return img_np
 
-def create_binary_mask(img_np, label, output_path):
-    """
-    Create a binary mask from a given label:
-    - Pixels equal to 'label' become 255
-    - All others become 0
-
-    Args:
-        img_np (np.ndarray): Input segmentation mask (2D array)
-        label (int): Label to extract
-        output_path (Path): Path to save the output PNG
-
-    Raises:
-        ValueError: If output_path does not end with .png or already exists
-    """
-    if output_path.suffix.lower() != ".png":
-        raise ValueError(f"Output path must end with .png (got '{output_path}')")
-
-    if output_path.exists():
-        raise ValueError(f"Output file already exists: '{output_path}'")
-
-    mask = np.where(img_np == label, 255, 0).astype(np.uint8)
-
-    if np.any(mask):
-        mask_img = Image.fromarray(mask, mode='L')
-        mask_img.save(output_path)
-        return mask_img
-    else:
-        return None
 
 def _check_file(args):
     image_path, min_val, max_val = args
     try:
-        load_and_check(image_path, min_val=min_val, max_val=max_val)
+        check(image_path, min_val=min_val, max_val=max_val)
         return None
     except Exception as e:
         return f"Error checking {image_path}: {e}"
@@ -121,11 +94,62 @@ def check_folder(input_path, min_val, max_val):
     else:
         print("All files checked successfully.")
 
+def create_binary_mask(input_path, label, output_path):
+    """
+    Create a binary mask from a given label in a PNG image file:
+    - Pixels equal to 'label' become 255
+    - All others become 0
+
+    Args:
+        input_path (Path): Path to the input PNG image (must be valid and 2D)
+        label (int): Label to extract
+        output_path (Path): Path to save the output PNG
+
+    Returns:
+        PIL.Image or None: Saved mask image if label is found, else None
+
+    Raises:
+        ValueError: If input_path or output_path is invalid
+    """
+    input_path = Path(input_path)
+    output_path = Path(output_path)
+
+    if input_path.suffix.lower() != ".png" or not input_path.is_file():
+        raise ValueError(f"Invalid input PNG file: '{input_path}'")
+
+    if not isinstance(label, int) or label < 0 or label >= 255:
+        raise ValueError(f"Label must be a positive integer less than 255 (got '{label}')")
+
+    if output_path.suffix.lower() != ".png":
+        raise ValueError(f"Output path must end with .png (got '{output_path}')")
+
+    if output_path.exists():
+        raise ValueError(f"Output file already exists: '{output_path}'")
+
+    try:
+        img = Image.open(input_path)
+        img.load()
+    except Exception as e:
+        raise ValueError(f"Failed to open input image '{input_path}'") from e
+
+    img_np = np.array(img)
+
+    if img_np.ndim != 2:
+        raise ValueError(f"Input image must be 2D (got ndim={img_np.ndim})")
+
+    mask = np.where(img_np == label, 255, 0).astype(np.uint8)
+
+    if np.any(mask):
+        mask_img = Image.fromarray(mask, mode='L')
+        mask_img.save(output_path)
+    else:
+        return None
+
+
 def _process_file(args):
     image_path, output_dir, label_index = args
-    img_np = load_and_check(image_path, min_val=0, max_val=255)
     output_path = output_dir / (image_path.stem + "_mask.png")
-    create_binary_mask(img_np, label_index, output_path)
+    create_binary_mask(image_path, label_index, output_path)
 
 def process_folder(input_path, label_name, label_index):
     """
