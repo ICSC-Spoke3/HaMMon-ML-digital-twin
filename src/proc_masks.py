@@ -147,11 +147,10 @@ def create_binary_mask(input_path, label, output_path):
 
 
 def _process_file(args):
-    image_path, output_dir, label_index = args
-    output_path = output_dir / (image_path.stem + "_mask.png")
+    image_path, output_path, label_index = args
     create_binary_mask(image_path, label_index, output_path)
 
-def process_folder(input_path, label_name, label_index):
+def process_folder(input_folder, output_folder, label_index):
     """
     Process all images in input_path and create binary masks for a specific label.
     Creates a folder 'binary-LABELNAME' next to input_path.
@@ -161,14 +160,15 @@ def process_folder(input_path, label_name, label_index):
         label_name (str): Name of the label (used in output folder name)
         label_index (int): Index of the label to extract
     """
-    input_path = Path(input_path)
-    output_dir = input_path.parent / f"binary-{label_name}"
-    output_dir.mkdir(exist_ok=False)
+    input_folder = Path(input_folder)
+    output_folder = Path(output_folder)
+    output_folder.mkdir(exist_ok=True)
 
-    files = list(input_path.iterdir())
-    args_list = [(f, output_dir, label_index) for f in files]
+    files = list(input_folder.iterdir())
+    args_list = [(f, output_folder / f.name, label_index) for f in files]
+
 
     with Pool(cpu_count()) as pool:
         pool.map(_process_file, args_list)
 
-    print(f"Binary masks saved to '{output_dir}'")
+    print(f"Binary masks saved to '{output_path}'")
