@@ -112,7 +112,6 @@ def create_binary_mask(input_path, label, output_path):
         ValueError: If input_path or output_path is invalid
     """
     input_path = Path(input_path)
-    output_path = Path(output_path)
 
     if input_path.suffix.lower() != ".png" or not input_path.is_file():
         raise ValueError(f"Invalid input PNG file: '{input_path}'")
@@ -120,9 +119,10 @@ def create_binary_mask(input_path, label, output_path):
     if not isinstance(label, int) or label < 0 or label >= 255:
         raise ValueError(f"Label must be a positive integer less than 255 (got '{label}')")
 
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)  
     if output_path.suffix.lower() != ".png":
         raise ValueError(f"Output path must end with .png (got '{output_path}')")
-
     if output_path.exists():
         raise ValueError(f"Output file already exists: '{output_path}'")
 
@@ -153,11 +153,10 @@ def _process_file(args):
 def process_folder(input_folder, output_folder, label_index):
     """
     Process all images in input_path and create binary masks for a specific label.
-    Creates a folder 'binary-LABELNAME' next to input_path.
 
     Args:
-        input_path (Path): Path to folder with input masks
-        label_name (str): Name of the label (used in output folder name)
+        input_folder
+        output_folder
         label_index (int): Index of the label to extract
     """
     input_folder = Path(input_folder)
