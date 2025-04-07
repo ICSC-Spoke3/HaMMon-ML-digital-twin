@@ -20,7 +20,7 @@ Multiprocessing is used where applicable for performance.
 """
 
 
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 from pathlib import Path
 from multiprocessing import Pool, cpu_count
 
@@ -60,21 +60,28 @@ def check_folder_image_sizes(folder_path):
 # Function to resize a single generic image
 def resize_single_image(args):
     input_path, output_path, h = args
-    with Image.open(input_path) as img:
-        img = ImageOps.exif_transpose(img)
-        x, y = img.size
-        target_size = (int(h * x / y), h)
-        img_resized = img.resize(target_size, Image.BILINEAR)
-        img_resized.save(output_path)
+    try: 
+        with Image.open(input_path) as img:
+            img = ImageOps.exif_transpose(img)
+            x, y = img.size
+            target_size = (int(h * x / y), h)
+            img_resized = img.resize(target_size, Image.BILINEAR)
+            img_resized.save(output_path)
+    except Exception as e:
+        raise RuntimeError(f"Failed to resize image '{input_path}'") from e
 
 # Function to resize a single label image
 def resize_single_label(args):
     input_path, output_path, h = args
-    with Image.open(input_path) as img:
-        x, y = img.size
-        target_size = (int(h * x / y), h)
-        img_resized = img.resize(target_size, Image.NEAREST)
-        img_resized.save(output_path)
+    try:
+        with Image.open(input_path) as img:
+            x, y = img.size
+            target_size = (int(h * x / y), h)
+            img_resized = img.resize(target_size, Image.NEAREST)
+            img_resized.save(output_path)
+    except Exception as e:
+        raise RuntimeError(f"Failed to resize label image '{input_path}'") from e
+
 
 # Multiprocessing function for generic images
 def resize_images(input_folder_path, output_folder_path, h):
