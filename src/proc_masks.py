@@ -161,7 +161,7 @@ def process_folder(input_folder, output_folder, label_index):
     """
     input_folder = Path(input_folder)
     output_folder = Path(output_folder)
-    output_folder.mkdir(exist_ok=True)
+    output_folder.mkdir(parents=True, exist_ok=True)
 
     files = list(input_folder.iterdir())
     args_list = [(f, output_folder / f.name, label_index) for f in files]
