@@ -8,7 +8,8 @@ import sys
 import os
 
 # Import proc_masks from the parent directory
-root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+root_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+
 sys.path.append(root_dir)
 
 from src.proc_masks import process_folder

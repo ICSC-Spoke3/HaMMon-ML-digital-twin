@@ -53,3 +53,10 @@ def memprint(text):
     mem_strings = " / ".join(f"{mem:.2f}" for mem in mem_results)
     print(text + f"\n {mem_strings}")
 
+def get_predictions(output_batch):
+    # "c" is the number of channels=classes
+    bs,c,h,w = output_batch.size()
+    tensor = output_batch.data
+    values, indices = tensor.max(1)
+    indices = indices.view(bs,h,w)
+    return indices

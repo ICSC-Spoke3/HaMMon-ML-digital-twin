@@ -54,7 +54,7 @@ class InferenceDataset(data.Dataset):
         img = self.loader(path)
         img = ImageOps.exif_transpose(img) 
         img = self.transform(img)
-        return img
+        return img, index 
 
 
     def __len__(self):
