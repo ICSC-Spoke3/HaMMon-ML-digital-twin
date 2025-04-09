@@ -5,6 +5,8 @@ import os
 root_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 sys.path.append(root_dir)
 from pathlib import Path
+import importlib
+import argparse
 
 import torch
 from PIL import Image
@@ -19,16 +21,21 @@ import time
 
 
 # -------------------------------------------------------  OPTIONS
-base_mem, one_img = 3.5, 3 # GB 
-input_device = 'gpu' # 'gpu' 'auto'
+dataset_model = 'floodnet'
 weights_file = Path(root_dir) / '.weights' / 'fn_tl' / 'weights-200.pth'
+one_img = 3 # GB , memory required to compute the model with one image
+input_device = 'auto' # 'cpu', 'gpu' 'auto'
 
 
-input_folder='/outputs/airflow_data/floodnet/img-700'
-output_folder = '/outputs/airflow_data/outputs'
+module = importlib.import_module(f"datasets.{dataset_model}")
+Dataset = getattr(module, 'Dataset')
 
-output_folder = Path(output_folder)
-output_folder.mkdir(parents=True, exist_ok=True)
+# -------------------------------------------------------  PATHS
+# input_folder='/outputs/airflow_data/floodnet/img-700'
+# output_folder = '/outputs/airflow_data/outputs'
+
+# output_folder = Path(output_folder)
+# output_folder.mkdir(parents=True, exist_ok=True)
 
 
 # -------------------------------------------------------  FUNCTIONS
@@ -98,4 +105,23 @@ def main():
         
         print(f"Dataset processed in {time.time() - start:.2f} seconds")
             
-main()
+
+# -------------------------------------------------------  PARSE ARGUMENTS
+parser = argparse.ArgumentParser(description='Segmentation inference script')
+parser.add_argument('input_folder', type=str, help='Path to the input image folder')
+parser.add_argument('output_folder', type=str, help='Path to the output folder for masks')
+args = parser.parse_args()
+
+input_folder = Path(args.input_folder)
+output_folder = Path(args.output_folder)
+
+if not input_folder.exists() or not any(input_folder.iterdir()):
+    raise FileNotFoundError(f"Input folder '{input_folder}' does not exist or is empty.")
+
+output_folder.mkdir(parents=True, exist_ok=True)
+
+if __name__ == '__main__':
+    main()
+
+
+# python batch_inference.py /outputs/airflow_data/floodnet/img-700 /outputs/airflow_data/outputs
