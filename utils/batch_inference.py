@@ -67,7 +67,7 @@ def set_device(input_device, mem):
                 i = gpu_index(mem)
                 batch_size = compute_bs(mem[i])
                 return torch.device(f'cuda:{i-1}'), batch_size
-             except ValueError as e:
+            except ValueError as e:
                 # If GPU memory is insufficient or invalid, fall back to CPU
                 print(f"GPU memory error ({mem[i]}): {e}. Falling back to CPU...")
                 return set_device('cpu', mem)
