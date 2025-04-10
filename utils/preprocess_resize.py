@@ -47,10 +47,12 @@ def main():
     args.output_folder.mkdir(parents=True, exist_ok=True)
 
     # check_folder_image_sizes and resize_images raise appropriate exceptions
-    check_folder_image_sizes(args.input_folder)
+    original_size = check_folder_image_sizes(args.input_folder)
     resize_images(str(args.input_folder), str(args.output_folder), args.size)
 
+    original_height = original_size[1]
     print(f"Images resized successfully to height {args.size} and saved in '{args.output_folder}'.")
+    print(original_height)
 
 if __name__ == "__main__":
     main()

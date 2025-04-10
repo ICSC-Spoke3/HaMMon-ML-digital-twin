@@ -54,8 +54,9 @@ def check_folder_image_sizes(folder_path):
     if len(sizes) > 1:
         raise ValueError(f"Images have different sizes: {sizes}")
     else:
-        print(f"All images have the same size: {sizes.pop()}")
-
+        size = sizes.pop()
+        print(f"All images have the same size: {size}")
+        return size
 
 # Function to resize a single generic image
 def resize_single_image(args):
