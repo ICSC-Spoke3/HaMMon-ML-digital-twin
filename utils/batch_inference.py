@@ -44,19 +44,33 @@ def gpu_index(mem):
     gpu_mem = mem[1:]
     return  max(range(len(gpu_mem)), key=lambda i: gpu_mem[i])+1
 
+def compute_bs(value):
+    # Calculate batch size and ensure it's at least 1 and value is non-negative
+    if value < 0:
+        raise ValueError("Negative memory value is invalid")
+    batch_size = int(value // one_img)
+    if batch_size < 1:
+        raise ValueError("Insufficient memory to process at least one image")
+    return batch_size
 
 def set_device(input_device, mem):
     
-    if (input_device == 'cpu') or len(mem) == 1: 
-        return torch.device('cpu'), int(mem[0] // one_img)
+    if (input_device == 'cpu'): 
+        return torch.device('cpu'), compute_bs(mem[0])  # Will raise error if invalid
     elif input_device in ('gpu', 'auto'):
         if len(mem) == 1:
             print("no gpu found, using cpu")
-            return torch.device('cpu'), int(mem[0] // one_img)
+            return torch.device('cpu'), compute_bs(mem[0])
         else:
-            i = gpu_index(mem)
-            # print(i, mem)
-            return torch.device(f'cuda:{i-1}'), (int(mem[i])// one_img)
+            try:
+                # Select the best GPU based on memory
+                i = gpu_index(mem)
+                batch_size = compute_bs(mem[i])
+                return torch.device(f'cuda:{i-1}'), batch_size
+             except ValueError as e:
+                # If GPU memory is insufficient or invalid, fall back to CPU
+                print(f"GPU memory error ({mem[i]}): {e}. Falling back to CPU...")
+                return set_device('cpu', mem)
 
 def save_segmentation_mask(tensor, path):
     array = tensor.cpu().numpy().astype('uint8')
