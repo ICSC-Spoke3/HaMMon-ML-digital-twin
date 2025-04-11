@@ -21,8 +21,9 @@ import time
 
 
 # -------------------------------------------------------  OPTIONS
-dataset_model = 'floodnet'
-weights_file = Path(root_dir) / '.weights' / 'fn_tl' / 'weights-200.pth'
+dataset_model = 'rescuenet'
+# weights_file = Path(root_dir) / '.weights' / 'fn_tl' / 'weights-200.pth'
+weights_file = Path(root_dir) / '.weights' / 'adam_sched' / 'weights-399.pth'
 one_img = 3 # GB , memory required to compute the model with one image
 input_device = 'auto' # 'cpu', 'gpu' 'auto'
 
