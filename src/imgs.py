@@ -130,18 +130,18 @@ class ImgToolkit:
 
     def print_dataset_colors(self):
         """
-        Stampa i colori associati a ciascuna classe nel dataset.
+        Print the colors of the classes in the dataset.
         
         """
         dataset=self.dataset
         class_names = dataset.class_names
         class_colors = dataset.class_colors
         
-        # Creazione della legenda con colori e nomi delle classi
+        # legend handles
         patches = [mpatches.Patch(color=[c/255.0 for c in color], label=name) 
                 for name, color in zip(class_names, class_colors)]
         
-        # Creazione della figura
+        # Create a figure and axis
         plt.figure(figsize=(8, 5))
         plt.legend(handles=patches, loc='upper left', title="Class Colors")
         plt.axis('off')  # Nasconde gli assi

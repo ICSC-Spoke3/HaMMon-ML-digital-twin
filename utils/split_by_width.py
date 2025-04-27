@@ -4,7 +4,6 @@ from pathlib import Path
 from PIL import Image, UnidentifiedImageError
 import shutil
 
-# Cartella di origine delle immagini
 SOURCE_DIR = Path("/outputs/airflow_data/floodnet/img")
 
 def get_image_size(path):
