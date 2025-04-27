@@ -13,12 +13,14 @@
 
 import argparse
 from pathlib import Path
+import json
 
 import sys
 import os
 # root_dir = os.path.abspath(os.path.join(os.getcwd(), ".."))
 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(root_dir)
+
 
 from src.proc_imgs import check_folder_image_sizes, resize_images
 
@@ -50,9 +52,12 @@ def main():
     original_size = check_folder_image_sizes(args.input_folder)
     resize_images(str(args.input_folder), str(args.output_folder), args.size)
 
-    original_height = original_size[1]
-    print(f"Images resized successfully to height {args.size} and saved in '{args.output_folder}'.")
-    print(original_height)
+    # Save the original size to a JSON file
+    with open("resize_info.json", "w") as f:
+        json.dump({ "w": original_size[0], "h": original_size[1]}, f)
+    
+    # Print the original HEIGHT for retrocompatibility
+    print(original_size[1])
 
 if __name__ == "__main__":
     main()
