@@ -145,7 +145,7 @@ def test(model, test_loader, num_classes, criterion, device):
             memprint("before model eval, batch: {}".format(i))
             output = model(data)
             memprint("after output") 
-            # print('ayeye brazorf', output.device, target.device)
+            # print('+', output.device, target.device)
             crit=criterion(output, target)
             #print("crit.shape", crit.shape)
             test_loss += crit.item()
