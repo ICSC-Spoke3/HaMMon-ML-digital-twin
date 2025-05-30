@@ -24,6 +24,14 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from pathlib import Path
 from multiprocessing import Pool, cpu_count
 
+def get_num_processes(cpu_usage_pct=50):
+    """
+    Calculate the number of processes to use based on desired CPU usage percentage.
+    """
+    cpu_usage_pct = max(1, min(cpu_usage_pct, 100))  # Clamp to range [1, 100]
+    total = cpu_count()
+    return max(1, int(total * cpu_usage_pct / 100))
+
 def image_size(image_path):
     path = Path(image_path)
     if not path.is_file():
@@ -36,7 +44,7 @@ def image_size(image_path):
     except Exception as e:
         raise RuntimeError(f"Error processing file {image_path}: {e}")
 
-def check_folder_image_sizes(folder_path):
+def check_folder_image_sizes(folder_path, cpu_usage_pct=50):
     folder = Path(folder_path)
     if not folder.is_dir():
         raise ValueError("The provided path is not a valid directory.")
@@ -45,7 +53,8 @@ def check_folder_image_sizes(folder_path):
     if not image_files:
         raise ValueError("No files found in the folder.")
 
-    with Pool(cpu_count()) as pool:
+    num_proc = get_num_processes(cpu_usage_pct)
+    with Pool(processes=num_proc) as pool:
         try:
             sizes = set(pool.map(image_size, image_files))
         except Exception as e:
@@ -85,7 +94,7 @@ def resize_single_label(args):
 
 
 # Multiprocessing function for generic images
-def resize_images(input_folder_path, output_folder_path, h):
+def resize_images(input_folder_path, output_folder_path, h, cpu_usage_pct=50):
     input_folder = Path(input_folder_path)
     output_folder = Path(output_folder_path)
     output_folder.mkdir(parents=True, exist_ok=True)
@@ -94,11 +103,12 @@ def resize_images(input_folder_path, output_folder_path, h):
 
     tasks = [(str(infile), str(output_folder / infile.name), h) for infile in input_files if infile.is_file()]
 
-    with Pool(cpu_count()) as pool:
+    num_proc = get_num_processes(cpu_usage_pct)
+    with Pool(processes=num_proc) as pool:
         pool.map(resize_single_image, tasks)
 
 # Multiprocessing function for label images
-def resize_labels(input_folder_path, output_folder_path, h):
+def resize_labels(input_folder_path, output_folder_path, h, cpu_usage_pct=50):
     input_folder = Path(input_folder_path)
     output_folder = Path(output_folder_path)
     output_folder.mkdir(parents=True, exist_ok=True)
@@ -108,5 +118,6 @@ def resize_labels(input_folder_path, output_folder_path, h):
 
     tasks = [(str(infile), str(output_folder / infile.name), h) for infile in input_files]
 
-    with Pool(cpu_count()) as pool:
+    num_proc = get_num_processes(cpu_usage_pct)
+    with Pool(processes=num_proc) as pool:
         pool.map(resize_single_label, tasks)

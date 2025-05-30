@@ -23,6 +23,22 @@ from pathlib import Path
 from multiprocessing import Pool, cpu_count
 
 
+def get_num_processes(cpu_usage_pct=50):
+    """
+    Calculate the number of processes to use based on desired CPU usage percentage.
+
+    Args:
+        cpu_usage_pct (int): Desired percentage of total CPU cores to use (1-100).
+                            Defaults to 50 (i.e., half the available cores).
+
+    Returns:
+        int: Number of processes to use, clamped between 1 and total core count.
+    """
+    cpu_usage_pct = max(1, min(cpu_usage_pct, 100))  # Clamp to range [1, 100]
+    total = cpu_count()
+    return max(1, int(total * cpu_usage_pct / 100))
+
+
 def check(image_path, min_val, max_val):
     """
     Load image and verify it is a valid segmentation mask:
@@ -70,20 +86,22 @@ def _check_file(args):
     except Exception as e:
         return f"Error checking {image_path}: {e}"
 
-def check_folder(input_path, min_val, max_val):
+def check_folder(input_path, min_val, max_val, cpu_usage_pct=50):
     """
-    Run load_and_check on all files in the given folder using multiprocessing.
+    Validate all PNG masks in a folder using multiprocessing.
 
     Args:
-        input_path (Path): Path to folder with images to check
-        min_val (int): Minimum pixel value allowed
-        max_val (int): Maximum pixel value allowed
+        input_path (Path): Folder containing mask files.
+        min_val (int): Minimum acceptable pixel value.
+        max_val (int): Maximum acceptable pixel value.
+        cpu_usage_pct (int, optional): Percent of CPU cores to use. Defaults to 50.
     """
     input_path = Path(input_path)
     files = list(input_path.iterdir())
     args_list = [(f, min_val, max_val) for f in files]
 
-    with Pool(cpu_count()) as pool:
+    num_proc = get_num_processes(cpu_usage_pct)
+    with Pool(processes=num_proc) as pool:
         results = pool.map(_check_file, args_list)
 
     errors = [r for r in results if r]
@@ -150,14 +168,16 @@ def _process_file(args):
     image_path, output_path, label_index = args
     create_binary_mask(image_path, label_index, output_path)
 
-def process_folder(input_folder, output_folder, label_index):
+
+def process_folder(input_folder, output_folder, label_index, cpu_usage_pct=50):
     """
-    Process all images in input_path and create binary masks for a specific label.
+    Process all masks in a folder to extract binary masks for a specific label.
 
     Args:
-        input_folder
-        output_folder
-        label_index (int): Index of the label to extract
+        input_folder (Path): Folder containing input masks.
+        output_folder (Path): Folder to save binary masks.
+        label_index (int): Label value to extract.
+        cpu_usage_pct (int, optional): Percent of CPU cores to use. Defaults to 50.
     """
     input_folder = Path(input_folder)
     output_folder = Path(output_folder)
@@ -166,8 +186,8 @@ def process_folder(input_folder, output_folder, label_index):
     files = list(input_folder.iterdir())
     args_list = [(f, output_folder / f.name, label_index) for f in files]
 
-
-    with Pool(cpu_count()) as pool:
+    num_proc = get_num_processes(cpu_usage_pct)
+    with Pool(processes=num_proc) as pool:
         pool.map(_process_file, args_list)
 
     print(f"Binary masks saved to '{output_folder}'")
