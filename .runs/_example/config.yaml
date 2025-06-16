@@ -1,0 +1,50 @@
+dataset: "rescuenet_resized"
+dataset_scale:  704
+crop_size: 128, 128             # test values
+batch_size: 12
+crop_size_eval: 128, 128       # test values  
+batch_size_eval: 48
+
+#patcher
+kernel: 64, 64
+stride: 32, 32
+
+# optimizer
+momentum: 0.9
+weight_decay: 0.0001
+
+# LR and scheduler
+LR: 0.001
+factor: 0.5
+patience: 5
+
+# frequency weights 
+c: 1.04
+
+# training loop
+epochs: 100
+
+# test epochs
+eval_epochs: 1, 1
+
+# metrics
+multiclass: true
+metrics:
+  train: 
+    - accuracy
+    - iou
+  val:
+    - accuracy
+    - iou
+    - cm
+  val2:
+    - accuracy
+    - iou
+    - cm
+  # test:
+  #   - accuracy
+  #   - iou
+  #   - cm
+  
+
+notes: "test!"

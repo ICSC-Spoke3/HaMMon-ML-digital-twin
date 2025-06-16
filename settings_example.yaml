@@ -1,0 +1,11 @@
+## folders
+run_folder: /home/xxx/xxx
+data_folder: /xxx
+datasets_folder: /xxx
+
+# distributed setup
+backend: "nccl"
+MASTER_ADDR: "localhost"
+MASTER_PORT: 12355
+world_size: 2
+num_workers: 8

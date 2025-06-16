@@ -1,5 +1,9 @@
 ### custom
-.data/
+.data
+settings.yaml
+nohup.output
+**/.logs/
+condaenv.*.requirements.txt
 
 
 ### JupyterNotebooks ###
