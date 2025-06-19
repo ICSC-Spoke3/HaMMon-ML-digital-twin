@@ -146,6 +146,8 @@ class Run:
         """
         Get the latest saved weights.
         """
+        if epoch == -1:
+            epoch = self.get_lew()
         return self.get('weights', epoch)
 
 

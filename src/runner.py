@@ -13,8 +13,9 @@ from src.tools import Tools
 from src.run import Run
 
 
-# Set to FALSE during actual runs
-EARLY_BREAK = False
+# Set to None during actual runs
+EARLY_BREAK = None
+EARLY_BREAK = 1
 
 
 class Runner(SetMetrics, SetObjects):
@@ -50,8 +51,6 @@ class Runner(SetMetrics, SetObjects):
             if EARLY_BREAK is not None and i >= EARLY_BREAK:
                     logging.warning(f"rank {self.rank}: Training Early break at batch {i}")
                     break
-    
-            
 
             self.optimizer.zero_grad()
 
@@ -73,15 +72,15 @@ class Runner(SetMetrics, SetObjects):
             self.optimizer.step()
             self.t.memprint('after step')
 
-            pred = output.argmax(dim=1) # max index along the channel dimension
+            output = output.detach()  # Detach output to avoid tracking gradients
+            self.metrics['train'].update(output, targets)  # Update training metrics
 
-            self.metrics['train'].update(pred, targets)  # Update training metrics
+            del inputs, targets, output, loss
 
         trn_loss /= len(self.dataloader_train)
         self.scheduler.step(trn_loss)
 
         self.metrics['train'].compute()
-      
 
         elapsed = time.time() - since
 
@@ -118,6 +117,7 @@ class Runner(SetMetrics, SetObjects):
                 self.t.memprint(f"rank {self.rank} batch {i} inputs {inputs.shape}, targets {targets.shape}")
 
                 if self.patcher is not None:
+                    logging.info(f"rank {self.rank} using patcher")
                     output = self.patcher(inputs)
                 else:
                     output = self.model(inputs)
@@ -127,10 +127,10 @@ class Runner(SetMetrics, SetObjects):
                 loss = self.criterion(output, targets)
                 val_loss += loss.item()            
 
-                pred = output.argmax(dim=1)
+                output = output.detach()  # Detach output to avoid tracking gradients
+                self.metrics[idx].update(output, targets)
 
-                self.metrics[idx].update(pred, targets)
-      
+                del inputs, targets, output, loss
 
         val_loss /= len(self.dataloader_eval)
 
@@ -164,6 +164,8 @@ class Runner(SetMetrics, SetObjects):
 
             #---------------------------------------------- validation
 
+            logging.info(f'rank {self.rank}: Starting Validation Epoch: {epoch}')
+
             elapsedv, lossv = self.epoch_eval(epoch, 'val')
 
             if self.rank == 0:
@@ -176,8 +178,8 @@ class Runner(SetMetrics, SetObjects):
     def loop_eval(self, idx='test'):
         assert isinstance(idx, str), "idx must be a string"
 
-        epochs = self.run.config["eval_epochs"]
-        epochs = tuple(map(int, epochs.split(',')))
+        epochs = tuple(self.run.config["eval_epochs"])
+
         assert len(epochs) == 2, "eval_epochs must be a tuple of two integers (start, end)"
 
         if idx not in self.metrics:

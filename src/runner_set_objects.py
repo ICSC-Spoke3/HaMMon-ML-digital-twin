@@ -9,6 +9,7 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 from src.settings import load_settings
 
 
+
 class SetObjects:
     def __init__(self, run, rank):
         self.run = run
@@ -41,11 +42,9 @@ class SetObjects:
 
 
 
-
     def _set_dataloader_train(self):
     
         if not hasattr(self, 'dataset_train') or self.dataset_train is None:
-            print('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@')
             self.dataset_train = None
         else:
             self.dataloader_train = torch.utils.data.DataLoader(
@@ -137,12 +136,4 @@ class SetObjects:
 
         self.set_criterion()
         self.criterion.to(self.rank)
-
-    # def set_patcher(self, patcher_func):
-    #     """
-    #     Sets the patcher function for data augmentation.
-    #     """
-    #     self.patcher = patcher_func(self.model,self.rank)
-
-
 

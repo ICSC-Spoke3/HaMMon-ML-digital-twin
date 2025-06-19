@@ -84,24 +84,21 @@ if __name__ == "__main__":
     parser.add_argument('--test', type=str, help='name of the test')
     args = parser.parse_args()
 
-    print(f"Arguments: {args}")
-
     run = Run(args.run)
 
     if args.clear:
+        #-------------- comment to disable the check
         confirm = input("Are you sure you want to clear data? [y/n]: ").strip().lower()
         if confirm != 'y':
             logging.info("Clear operation cancelled.")
-            exit(0)     
+            exit(0)
+        #------------------------------------------
         run.clear(weights=True)
         logging.info(f"run {args.run} cleared")
-        exit(0)  
-   
-            
+        exit(0)
+
     settings = load_settings()
     logging.info(f"Settings loaded: {settings}")
-
-    print(f"args: {args}")
 
     sys.path.append(str(run.folder))
 

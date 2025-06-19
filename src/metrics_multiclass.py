@@ -3,6 +3,7 @@ from torchmetrics import JaccardIndex
 from torchmetrics.classification import MulticlassConfusionMatrix 
 from torchmetrics.classification import MulticlassAccuracy
 
+import logging
 
 class Metrics:
     def __init__(self, run, rank, subset, config):
@@ -68,8 +69,9 @@ class Metrics:
     def reset(self):
         for metric in self.metrics:
             self.metrics[metric].reset()
-    
-    def update(self, pred, target):
+
+    def update(self, output, target):
+        pred = output.argmax(dim=1)  # Get the predicted class indices
         for metric in self.metrics:
             match metric:
                 case 'accuracy':
