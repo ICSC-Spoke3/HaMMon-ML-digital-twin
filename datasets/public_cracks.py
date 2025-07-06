@@ -108,6 +108,19 @@ class Dataset(data.Dataset):
             #LabelToLongTensor()
             LabelToFloatTensor()  # Convert to float tensor
         ]) # Choose the target transform depending on the Loss Function:
+    
+    @classmethod
+    def load_img(cls, path):
+        img = Image.open(path)
+        img = ImageOps.exif_transpose(img)
+        return img.convert('RGB')
+
+    @classmethod
+    def load_target(cls, path):
+        target = Image.open(path)
+        target = ImageOps.exif_transpose(target)
+        return target.convert('L')
+
 
 
 
@@ -163,14 +176,11 @@ class Dataset(data.Dataset):
         return img_path, target_path
 
     def __getitem__(self, index):
-        img_path, target_path = self._get_path(index) 
-        img = Image.open(img_path)  
-        img = ImageOps.exif_transpose(img) 
-        img = img.convert('RGB')  # Convert to RGB if not already
 
-        target = Image.open(target_path)
-        target = ImageOps.exif_transpose(target)
-        target = target.convert('L')
+        img_path, target_path = self._get_path(index) 
+        
+        img = self.__class__.load_img(img_path)
+        target = self.__class__.load_target(target_path)
 
         if self.joint_transform is not None: 
             img, target = self.joint_transform([img, target])
