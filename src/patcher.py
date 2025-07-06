@@ -156,36 +156,59 @@ class Patcher:
         logging.debug(f'unfolded shape: {patches.shape}, output shape: {output.shape}')
 
 
-        if (self.debug):
-            # === DEBUG VISUALIZATION (optional, comment/uncomment and fix as needed) ===
-            import sys
-            from pathlib import Path
-            from datasets.rescuenet_resized import Dataset
-            from matplotlib import pyplot as plt
+        # if (self.debug):
+        #     # === DEBUG VISUALIZATION (optional, comment/uncomment and fix as needed) ===
+        #     import sys
+        #     from pathlib import Path
+        #     from datasets.rescuenet_resized import Dataset
+        #     from matplotlib import pyplot as plt
+        #     import numpy as np
+        #     # -------------------------------------------------------------------
+        #     root_folder = Path(__file__).resolve().parent.parent
+        #     sys.path.append(str(root_folder))
+        #     from src.imgs import Img
+        #     # -------------------------------------------------------------------
+        #     img = Img(Dataset)
+        #     # -------------------------------------------------------------------
+        #     index = 0
+        #     cols, rows = n[1]+1, n[0]+1
+        #     fig, axes = plt.subplots(rows, cols, figsize=(cols * 2, rows * 2), constrained_layout=True)
+        #     axes = np.array(axes).reshape(rows, cols)
+
+        #     for idx in range(N):
+        #         ax = axes[idx // cols, idx % cols]
+        #         # multiple class
+        #         #img_np = img.label_to_np(output[idx][index].argmax(0).squeeze(0).cpu()) # (H, W)
+        #         #single class
+        #         img_np = img.label_to_np(self.predict(output[idx][index]).squeeze(0).cpu()) # (H, W)
+        #         ax.imshow(img_np, cmap='gray')
+        #         ax.axis('off')
+        #     #plt.tight_layout()
+        #     plt.show()
+        #     # ===================================================================
+
+        if self.debug:
+            import matplotlib.pyplot as plt
             import numpy as np
-            # -------------------------------------------------------------------
-            root_folder = Path(__file__).resolve().parent.parent
-            sys.path.append(str(root_folder))
-            from src.imgs import Img
-            # -------------------------------------------------------------------
-            img = Img(Dataset)
-            # -------------------------------------------------------------------
-            index = 0
-            cols, rows = n[1]+1, n[0]+1
+
+            index = 0  # first image in batch
+            cols, rows = n[1] + 1, n[0] + 1
             fig, axes = plt.subplots(rows, cols, figsize=(cols * 2, rows * 2), constrained_layout=True)
             axes = np.array(axes).reshape(rows, cols)
 
             for idx in range(N):
                 ax = axes[idx // cols, idx % cols]
-                # multiple class
-                #img_np = img.label_to_np(output[idx][index].argmax(0).squeeze(0).cpu()) # (H, W)
-                #single class
-                img_np = img.label_to_np(self.predict(output[idx][index]).squeeze(0).cpu()) # (H, W)
-                ax.imshow(img_np, cmap='gray')
+                # Predict class mask for patch
+                mask = self.predict(output[idx][index]).squeeze(0).cpu().numpy().astype(np.uint8)  # shape: (H, W)
+
+                # Build custom colormap: class 0 -> black, class 1 -> white, others → assign colors automatically
+                from matplotlib.colors import ListedColormap
+                cmap = ListedColormap(['black', 'white'] + list(plt.cm.tab10.colors[2:]))
+
+                ax.imshow(mask, cmap=cmap, vmin=0, vmax=10)
                 ax.axis('off')
-            #plt.tight_layout()
+
             plt.show()
-            # ===================================================================
 
 
         # combine results back to the original canvas size

@@ -2,7 +2,12 @@ import torch
 
 
 class Predict:
-    def __init__(self, kind: str):
+    def __init__(self, kind: str, threshold=None):
+        if threshold is not None:
+            assert isinstance(threshold, float), f"threshold must be a float, but got {type(threshold)}"
+            if not (0 <= threshold <= 1):
+                raise ValueError(f"Threshold must be between 0 and 1, but got {threshold}.")
+            self.threshold = threshold
         assert isinstance(kind, str), f"prediction_method must be a string, but got {type(kind)}"
         self.implemented = ['max', 'sigmoid', 'threshold', 'binary_predictions']
         assert kind in self.implemented, f"prediction_method must be one of {self.implemented}, but got {kind}"
@@ -67,7 +72,7 @@ class Predict:
         diff = output[:, 1, :, :] - output[:, 0, :, :]
         return torch.sigmoid(diff)
     
-    def threshold(self, output, threshold):
+    def threshold(self, output, threshold=None):
         """
         Apply a threshold to the output tensor for binary classification.
 
@@ -78,27 +83,49 @@ class Predict:
         Returns:
             torch.Tensor: Binary tensor after applying the threshold.
         """
+        if threshold is None:
+            threshold = self.threshold
+        assert isinstance(threshold, float), f"Threshold must be a float, but got {type(threshold)}."
         if not (0 <= threshold <= 1):
             raise ValueError(f"Threshold must be between 0 and 1, but got {threshold}.")
         
         return (output > threshold).float()
     
-    def binary_predictions(self, output, threshold):
+    # def binary_predictions(self, output, threshold):
+    #     """
+    #     Get binary predictions based on the output tensor and a threshold.
+
+    #     Args:
+    #         output (torch.Tensor): The model's output tensor.
+    #         threshold (float): Threshold value to apply.
+
+    #     Returns:
+    #         torch.Tensor: Binary predictions after applying the threshold.
+    #     """
+    #     output = self.binary_sigmoid(output)    # get the probabiity for class 1
+    #     return self.threshold(output, threshold)
+    
+
+    def binary_predictions(self, output, threshold=None):
         """
         Get binary predictions based on the output tensor and a threshold.
 
         Args:
-            output (torch.Tensor): The model's output tensor.
+            output (torch.Tensor): The model's output tensor:
+                            one-dimensional logits, shape (B, 1, H, W)
             threshold (float): Threshold value to apply.
 
         Returns:
             torch.Tensor: Binary predictions after applying the threshold.
         """
-        output = self.binary_sigmoid(output)    # get the probabiity for class 1
-        return self.threshold(output, threshold)
-    
-
-
+        if threshold is None:
+            threshold = self.threshold
+        assert isinstance(threshold, float), f"Threshold must be a float, but got {type(threshold)}."
+        if not (0 <= threshold <= 1):
+            raise ValueError(f"Threshold must be between 0 and 1, but got {threshold}.")
+        
+        output = torch.sigmoid(output)   
+        return (output > threshold).float()
 
 
 
