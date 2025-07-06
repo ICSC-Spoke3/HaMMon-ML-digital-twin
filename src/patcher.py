@@ -15,7 +15,12 @@ class Patcher:
         mode (str, optional): The mode of operation ('average' or 'max'). Default is 'average'.
     """
 
-    def __init__(self, model, kernel, stride, padding_mode='reflect', device=None, mode='average'):
+    def __init__(self, model, kernel, stride, padding_mode='reflect', device=None, mode='average', predict=None, debug=False):
+        self.predict = predict
+
+        assert isinstance(debug, bool), "Debug must be a boolean value."
+        self.debug = debug
+        
         if mode in ['average', 'max']:
             self.mode = mode
         else:
@@ -73,7 +78,7 @@ class Patcher:
         k = self.kernel
         s = self.stride
 
-        print(f'before H: {H}, k[0]: {k[0]}, s[0]: {s[0]}')
+        # print(f'before H: {H}, k[0]: {k[0]}, s[0]: {s[0]}')
 
         d = H -k[0], W - k[1]
 
@@ -151,35 +156,36 @@ class Patcher:
         logging.debug(f'unfolded shape: {patches.shape}, output shape: {output.shape}')
 
 
+        if (self.debug):
+            # === DEBUG VISUALIZATION (optional, comment/uncomment and fix as needed) ===
+            import sys
+            from pathlib import Path
+            from datasets.rescuenet_resized import Dataset
+            from matplotlib import pyplot as plt
+            import numpy as np
+            # -------------------------------------------------------------------
+            root_folder = Path(__file__).resolve().parent.parent
+            sys.path.append(str(root_folder))
+            from src.imgs import Img
+            # -------------------------------------------------------------------
+            img = Img(Dataset)
+            # -------------------------------------------------------------------
+            index = 0
+            cols, rows = n[1]+1, n[0]+1
+            fig, axes = plt.subplots(rows, cols, figsize=(cols * 2, rows * 2), constrained_layout=True)
+            axes = np.array(axes).reshape(rows, cols)
 
-        # # === DEBUG VISUALIZATION (optional, comment/uncomment and fix as needed) ===
-        # import sys
-        # from pathlib import Path
-        # from datasets.rescuenet_resized import Dataset
-        # from matplotlib import pyplot as plt
-        # import numpy as np
-        # # -------------------------------------------------------------------
-        # root_folder = Path(__file__).resolve().parent.parent
-        # sys.path.append(str(root_folder))
-        # from src.imgs import Img
-        # # -------------------------------------------------------------------
-        # img = Img(Dataset)
-        # # -------------------------------------------------------------------
-        # index = 0
-        # cols, rows = n[1]+1, n[0]+1
-        # print(f'rows: {rows}, cols: {cols}, n_patches: {N}')
-        # fig, axes = plt.subplots(rows, cols, figsize=(cols * 2, rows * 2), constrained_layout=True)
-        # axes = np.array(axes).reshape(rows, cols)
-
-        # for idx in range(N):
-        #     ax = axes[idx // cols, idx % cols]
-        #     print(f' output[{idx}].shape: {output[idx][index].shape}')
-        #     img_np = img.label_to_np(output[idx][index].argmax(0).squeeze(0).cpu()) # (H, W)
-        #     ax.imshow(img_np, cmap='gray')
-        #     ax.axis('off')
-        # #plt.tight_layout()
-        # plt.show()
-        # # ===================================================================
+            for idx in range(N):
+                ax = axes[idx // cols, idx % cols]
+                # multiple class
+                #img_np = img.label_to_np(output[idx][index].argmax(0).squeeze(0).cpu()) # (H, W)
+                #single class
+                img_np = img.label_to_np(self.predict(output[idx][index]).squeeze(0).cpu()) # (H, W)
+                ax.imshow(img_np, cmap='gray')
+                ax.axis('off')
+            #plt.tight_layout()
+            plt.show()
+            # ===================================================================
 
 
         # combine results back to the original canvas size
