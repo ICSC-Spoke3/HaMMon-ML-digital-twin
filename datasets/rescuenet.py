@@ -8,6 +8,7 @@ from PIL import Image, ImageOps
 from torchvision.datasets.folder import is_image_file, default_loader
 from torchvision import transforms
 
+
                 #################
                 ### RescueNet ###
                 #################
@@ -23,14 +24,30 @@ Scientific Data (Nature): https://www.nature.com/articles/s41597-023-02743-2
 
 # download link (June 2025)
 curl -L -o ./rescuenet.zip https://www.kaggle.com/api/v1/datasets/download/yaroslavchyrko/rescuenet
+
+Expected layout:
+
+semanticSegmentationTrainSet/
+.../-org-img/*.jpg
+.../-label-img/*_lab.png
+semanticSegmentationValidationSet/ (same structure)
+semanticSegmentationTestSet/ (same structure)
+
+If you want to use smaller resolutions, resize both images and masks ahead of time,
+place the results under RescueNet-resized-{SCALE} at the dataset root, and keep the standard subfolders
+
 """
 
 
 settings_path = Path(__file__).resolve().parent.parent / "settings.yaml"
 
-with settings_path.open('r') as f:
-    settings = yaml.safe_load(f)
-datasets_folder = settings.get('datasets_folder')
+if settings_path.exists():
+    with settings_path.open('r') as f:
+        settings = yaml.safe_load(f)
+    datasets_folder = Path(settings.get('datasets_folder'))
+else: 
+    datasets_folder = None
+
 
 DATASET_PATH = f"{datasets_folder}/RescueNet"
 
@@ -53,17 +70,6 @@ class_colors = [
 ]
 
 
-# RGB STATS
-mean = [134.0602882986386, 131.77490467005882, 121.64714905765645]
-std = [67.86721142834165, 65.86607098636689, 65.6198659244834]
-
-# NUMBER OF IMAGES EACH LABEL APPEARS IN:
-image_count = [3406, 1254, 1523, 1365,  956,  729, 1354, 1988,  561, 1682,  263 ]
-# NUMBER OF PIXELS FOR EACH LABEL:
-pixel_count = [22679894325,  3509813882,  1143512180,  1136628428,   726309268,
-          622711602,   143126533,  2992469634,   685492293,  9523743127,
-           24513768 ]
-
 
 class LabelToLongTensor(object):
     def __call__(self, pic):
@@ -82,11 +88,47 @@ class Dataset(data.Dataset):
     # classes
     class_names = class_names
     class_colors = class_colors
-    # stats
-    mean = mean
-    std = std
-    image_count = image_count
-    pixel_count = pixel_count
+ 
+
+    @classmethod
+    def stats_from_yaml(cls, path):
+
+        if path is None:
+            raise ValueError("Path to stats file must be defined. Please set the path in settings.yaml.")
+        else:
+            path = Path(path)
+            if not path.is_absolute():
+                if datasets_folder is None:
+                    raise ValueError("datasets_folder is not defined. Please set the datasets_folder in settings.yaml.")
+                path = Path(__file__).parent / 'stats' / path
+
+        assert path.exists(), f"Stats file {path} not found."
+        with path.open('r') as f:
+            stats = yaml.safe_load(f)
+
+        # verify the required keys are present
+        required_keys = ['mean', 'std']
+        for key in required_keys:
+            assert key in stats, f"Key '{key}' not found in stats file {path}." 
+        
+        cls.mean = stats['mean']
+        cls.std = stats['std']
+        cls.norm_mean = [m / 255.0 for m in cls.mean]
+        cls.norm_std = [s / 255.0 for s in cls.std]
+        cls.image_count = stats.get('image_count', None)
+        cls.pixel_count = stats.get('pixel_count', None)
+
+    @classmethod
+    def transform(cls):
+        """
+        Image transform: converts to tensor and normalizes using dataset RGB stats.
+        """
+
+        return transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=cls.norm_mean, std=cls.norm_std)
+        ])
+    
 
     def __init__(self, *,
                  split,
@@ -98,7 +140,8 @@ class Dataset(data.Dataset):
 
         self.split = split
 
-        if scale != 3000:
+        # if scale is nor 3000 nor none, use resized folder
+        if scale not in (None, 3000):
             self.root_path = self.root_path + f"-resized-{scale}"
         assert  os.path.exists(self.root_path), f'dataset not found {self.root_path}'
 
@@ -106,13 +149,8 @@ class Dataset(data.Dataset):
 
         self.imgs = []
 
-        self.norm_mean=[m/255.0 for m in self.__class__.mean]
-        self.norm_std=[s/255.0 for s in self.__class__.std]
 
-        self.transform = transforms.Compose([
-            transforms.ToTensor(), # to [0,1] range
-            transforms.Normalize(mean=self.norm_mean, std=self.norm_std)
-        ])
+        self.transform = self.__class__.transform()
         self.img_transform = img_transform 
         self.target_transform = LabelToLongTensor()
         self.joint_transform = joint_transform

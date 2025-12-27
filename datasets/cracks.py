@@ -28,24 +28,6 @@ class_colors = [
     (255, 255, 255),     # Crack
 ]
 
-# RGB STATS
-mean = [ 139.33827584656237, 138.5015996683192, 137.2962738262087]
-std = [ 52.17905205505703, 51.580754955750486, 51.26065890449696]
-
-# NUMBER OF IMAGES EACH LABEL APPEARS IN:
-image_count = [1153, 1148]
-# NUMBER OF PIXELS FOR EACH LABEL:
-pixel_count = [297074300,   5177732]
-
-
-class LabelToLongTensor(object):
-    def __call__(self, pic):
-        if isinstance(pic, np.ndarray):
-            # handle numpy array
-            label = torch.from_numpy(pic).long()
-        else:
-            label = torch.from_numpy(np.array(pic, dtype=np.int64))
-        return label
     
 class LabelToFloatTensor(object):
     def __call__(self, pic):
@@ -78,14 +60,37 @@ class Dataset(data.Dataset):
     # classes
     class_names = class_names
     class_colors = class_colors
-    # stats
-    mean = mean
-    std = std
-    # Normalized RGB stats (scaled to [0, 1])
-    norm_mean = [m / 255.0 for m in mean]
-    norm_std = [s / 255.0 for s in std]
-    image_count = image_count
-    pixel_count = pixel_count
+
+
+    @classmethod
+    def stats_from_yaml(cls, path):
+
+        if path is None:
+            raise ValueError("Path to stats file must be defined. Please set the path in settings.yaml.")
+        else:
+            path = Path(path)
+            if not path.is_absolute():
+                if datasets_folder is None:
+                    raise ValueError("datasets_folder is not defined. Please set the datasets_folder in settings.yaml.")
+                path = Path(__file__).parent / 'stats' / path
+
+        assert path.exists(), f"Stats file {path} not found."
+        with path.open('r') as f:
+            stats = yaml.safe_load(f)
+
+        # verify the required keys are present
+        required_keys = ['mean', 'std']
+        for key in required_keys:
+            assert key in stats, f"Key '{key}' not found in stats file {path}." 
+        
+        cls.mean = stats['mean']
+        cls.std = stats['std']
+        cls.norm_mean = [m / 255.0 for m in cls.mean]
+        cls.norm_std = [s / 255.0 for s in cls.std]
+        cls.image_count = stats.get('image_count', None)
+        cls.pixel_count = stats.get('pixel_count', None)
+
+
 
     @classmethod
     def transform(cls):
@@ -105,7 +110,6 @@ class Dataset(data.Dataset):
         """
         return transforms.Compose([
             DivideBy255(),  # Convert to [0, 1] range
-            #LabelToLongTensor()
             LabelToFloatTensor()  # Convert to float tensor
         ]) # Choose the target transform depending on the Loss Function:
     
@@ -132,11 +136,11 @@ class Dataset(data.Dataset):
                  root_path=None,
                 ):
         
- 
+        if not hasattr(self.__class__, 'norm_mean') or not hasattr(self.__class__, 'norm_std'):
+            raise RuntimeError("Dataset statistics not initialized. Please call Dataset.stats_from_yaml(path_to_yaml) before instantiating the dataset.")
 
         if root_path is None:
-            assert datasets_folder is not None, "datasets_folder is not defined. Please set the datasets_folder in settings.yaml."
-            self.root_path = datasets_folder / 'public-cracks'
+            raise ValueError("root_path must be defined. Please set the root_path")
         else:
             root_path = Path(root_path)
             if root_path.is_absolute():

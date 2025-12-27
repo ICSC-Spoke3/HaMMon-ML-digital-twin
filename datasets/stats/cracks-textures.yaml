@@ -1,0 +1,24 @@
+################################################################################# "Dataset_Textures_Train_Undersampled"
+# # RGB STATS
+# # Mean RGB values before preprocessing: R: 143.4297684568738, G: 132.3829004536097, B: 122.91040352111366
+# mean: [143.4297684568738, 132.3829004536097, 122.91040352111366]
+# # Standard Deviation RGB values before preprocessing: R: 49.670518218916314, G: 47.653877794115715, B: 48.95309898483821
+# std: [49.670518218916314, 47.653877794115715, 48.95309898483821]
+# # NUMBER OF IMAGES EACH LABEL APPEARS IN:
+# # Number of images each label appears in: tensor([814, 739])
+# image_count: [814, 739]
+# # NUMBER OF PIXELS FOR EACH LABEL:
+# # Number of pixels for each label: tensor([212413056,    972160])
+# pixel_count: [212413056,    972160]
+
+
+
+################################################################################# "Dataset_Textures_Train_Undersampled_2.0"
+# R: 136.25551934743206, G: 130.1547932606263, B: 121.65071142322822
+mean: [136.25551934743206, 130.1547932606263, 121.65071142322822]
+# Standard Deviation RGB values before preprocessing: R: 51.79251955790688, G: 49.78533510614331, B: 49.86324239196432
+std: [51.79251955790688, 49.78533510614331, 49.86324239196432]
+# Number of images each label appears in: tensor([514, 471])
+image_count: [514, 471]
+# Number of pixels for each label: tensor([134056204,    685812])
+pixel_count: [134056204,    685812]

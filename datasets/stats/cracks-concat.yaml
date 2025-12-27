@@ -1,0 +1,17 @@
+### "Dataset_Textures_Train_Undersampled_2.0" + "Dataset_2D_Train_Undersampled_No_CastelNuovo_AreaGrande_CentroItalia"
+
+# # Number of images each label appears in: tensor([514, 471])
+# image_count: [514, 471]
+# # Number of pixels for each label: tensor([134056204,    685812])
+# pixel_count: [134056204,    685812]
+
+# Mean RGB values before preprocessing: R: 139.9080626807445, G: 134.69817480180188, B: 128.54686941458365
+mean: [139.9080626807445, 134.69817480180188, 128.54686941458365]
+# Standard Deviation RGB values before preprocessing: R: 56.80370564974724, G: 55.11661224229926, B: 56.26327806711443
+std: [56.80370564974724, 55.11661224229926, 56.26327806711443]
+
+# Number of images each label appears in: tensor([1396, 1273])
+image_count: [1396, 1273]
+# Number of pixels for each label: tensor([363459682,   2493342])
+pixel_count: [363459682,   2493342]
+

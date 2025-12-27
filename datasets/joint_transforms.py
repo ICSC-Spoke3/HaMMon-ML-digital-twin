@@ -5,6 +5,8 @@ from PIL import Image, ImageOps
 import numbers
 import types
 
+# joint data-augmentation transforms for paired PIL images (image + mask).
+
 class JointScale:
     """
     Rescales a pair of PIL.Images (image and mask) to a target size.
