@@ -143,7 +143,7 @@ class Dataset(data.Dataset):
 
         self.split = split
 
-        if scale is not in (None, 3000):
+        if scale not in (None, 3000):
             self.root_path = self.root_path + f"-resized-{scale}/FloodNet-Supervised_v1.0"
         else:
             self.root_path = self.root_path + "/FloodNet-Supervised_v1.0"
