@@ -70,8 +70,6 @@ class Dataset(data.Dataset):
         else:
             path = Path(path)
             if not path.is_absolute():
-                if datasets_folder is None:
-                    raise ValueError("datasets_folder is not defined. Please set the datasets_folder in settings.yaml.")
                 path = Path(__file__).parent / 'stats' / path
 
         assert path.exists(), f"Stats file {path} not found."
