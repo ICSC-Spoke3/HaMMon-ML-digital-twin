@@ -26,7 +26,10 @@ class Tyaml:
             
         # Create history path by adding -hist before the extension
         stem = self.yaml_path.stem + '-hist'
-        self.history_path = self.yaml_path.with_name(stem + self.yaml_path.suffix)
+        if history_path is not None:
+            self.history_path = Path(history_path).resolve()
+        else:
+            self.history_path = self.yaml_path.with_name(stem + self.yaml_path.suffix)
 
     @property
     def hash(self):

@@ -14,7 +14,7 @@ class SetObjects:
     def __init__(self, run, rank):
         self.run = run
         self.rank = rank
-        #self.lew = self.run.get_lew()
+
         self.settings = load_settings()
 
         if not hasattr(self, 'set_dataset_train'):
@@ -53,7 +53,9 @@ class SetObjects:
                 shuffle=False,
                 num_workers=self.settings["num_workers"],
                 pin_memory=True,
-                sampler=DistributedSampler(self.dataset_train) 
+                sampler=DistributedSampler(self.dataset_train),
+                drop_last=True,
+                #persistent_workers=True
             )
 
     def _set_dataloader_eval(self):
@@ -66,7 +68,8 @@ class SetObjects:
                 shuffle=False,
                 num_workers=self.settings["num_workers"],
                 pin_memory=True,
-                sampler=DistributedSampler(self.dataset_eval) 
+                sampler=DistributedSampler(self.dataset_eval),
+                #persistent_workers=True
             )  
 
     def _set_model(self, epoch=None):
@@ -84,10 +87,19 @@ class SetObjects:
         epoch = self.lew if epoch is None else epoch
 
         if epoch == 0: 
-            logging.info('Initializing weights from scratch')
-            if not hasattr(self, 'init_weights'):
-                raise ValueError("init_weights method must be defined to initialize model weights.")
-            self.init_weights()
+ 
+            if self.rank == 0:
+                logging.info('Initializing weights from scratch')
+                if not hasattr(self, 'init_weights'):
+                    raise ValueError("init_weights method must be defined to initialize model weights.")
+                self.init_weights()
+
+            # Only rank 0 initializes; DDP will broadcast params/buffers to other 
+            # ranks at construction (init_sync/broadcast).
+            # No need to manually broadcast parameters here 
+            # if DDP init_sync/broadcast are enabled.
+
+
         elif epoch > 0:
             weights = self.run.get_weights(epoch)
             self.model.load_state_dict(weights)
@@ -131,9 +143,9 @@ class SetObjects:
         """
         Sets the loss function.
         """
-        if hasattr(self, 'class_weights'):
-            self.class_weights.to(self.rank)  # Ensure class weights are on the correct device
 
         self.set_criterion()
         self.criterion.to(self.rank)
 
+        if hasattr(self, 'class_weights'):
+            self.class_weights.to(self.rank)  # Ensure class weights are on the correct device

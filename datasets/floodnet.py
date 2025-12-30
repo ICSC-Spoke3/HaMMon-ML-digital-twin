@@ -132,6 +132,17 @@ class Dataset(data.Dataset):
             transforms.ToTensor(),
             transforms.Normalize(mean=cls.norm_mean, std=cls.norm_std)
         ])
+    @classmethod
+    def load_img(cls, path):
+        img = Image.open(path)
+        img = ImageOps.exif_transpose(img)
+        return img.convert('RGB')
+
+    @classmethod
+    def load_target(cls, path):
+        target = Image.open(path)
+        target = ImageOps.exif_transpose(target)
+        return target.convert('L')
 
     def __init__(self, *,
                  split,

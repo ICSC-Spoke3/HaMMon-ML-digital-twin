@@ -3,9 +3,10 @@ from torchmetrics.classification import BinaryConfusionMatrix
 
 import logging
 
-DECIMALS = 3 # Number of decimal places for metrics output
+DECIMALS = 5 # Number of decimal places for metrics output
 
 from src.predict import Predict
+
 
 
 class BinaryMetrics:
@@ -13,23 +14,14 @@ class BinaryMetrics:
     A wrapper around multiple BinaryConfusionMatrix instances, one per threshold.
     Provides: to(device), update(preds, targets), compute(), reset().
     """
-    def __init__(self, run, rank, subset, config):
+    def __init__(self, runner, subset):
         assert isinstance(subset, str), f"subset must be a string, but got {type(subset)}"
 
-        self.run = run
-        self.rank = rank
-        self.subset = subset
 
-        self.config = config
-        implemented = ['cm']
-        # control if metrics values inside config are unique
-        if len(self.config) != len(set(self.config)):
-            raise ValueError(f"Metrics for {subset} must be unique, but found duplicates in {self.config}")
-        
-        # control if metrics values inside config are implemented
-        for metric in self.config:
-            if metric not in implemented:
-                raise NotImplementedError(f"Metric {metric} is not implemented.")
+        self.runner = runner
+        self.run = self.runner.run
+        self.rank = self.runner.rank
+        self.subset = subset
 
         self.metrics = {}
 
@@ -44,9 +36,10 @@ class BinaryMetrics:
             self.run.new_csv(f'metrics_{subset}', header=results_header)
         self.cm_results = [] # Store results for each threshold
         # Initialize a BinaryConfusionMatrix for each threshold
-        self.cms = [BinaryConfusionMatrix().to(self.rank) for _ in self.thresholds]
+        self.cms = [BinaryConfusionMatrix(sync_on_compute=True).to(self.rank) for _ in self.thresholds]
 
         self.binary_predictions = Predict('binary_predictions')
+
 
 
     def reset(self):
@@ -65,7 +58,7 @@ class BinaryMetrics:
 
         for i, thr in enumerate(self.thresholds):
             bin_preds =self.binary_predictions(preds, threshold=thr)
-            self.cms[i].update(bin_preds, target)
+            self.cms[i].update(bin_preds, target.unsqueeze(1))
                   
     def compute(self):
         for i in range(len(self.thresholds)):

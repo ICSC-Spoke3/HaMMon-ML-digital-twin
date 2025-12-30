@@ -1,12 +1,12 @@
 # Training Instructions
 
-This document provides step-by-step instructions to set up and launch a distributed training run using PyTorch.
+This document provides instructions to set up and launch a distributed training run using this repository.
 
-Follow these guidelines carefully to ensure reproducibility and smooth execution.
+Follow these guidelines to ensure reproducibility and smooth execution.
 
 # Environment Configuration
 
-Before starting a new training run, copy `settings_backup.yaml` to `settings.yaml` in the repository root. Adjust the paths to match your system and set the distributed training parameters:
+Before starting a new training run, copy `settings_example.yaml` to `settings.yaml` in the repository root. Adjust the paths to match your system and set the distributed training parameters:
 
 * `run_folder` and `data_folder`: destination directories for run outputs and checkpoint data.
 * `datasets_folder`: location of the datasets.
@@ -27,6 +27,11 @@ Inside this directory place:
 
 Use one of the existing folders inside `.runs` as a template if needed.
 
+# Runner loop
+
+`runner.py` defines the training/validation loop for a single run. It consumes `run.config`, builds the objects provided by `runner_init.py`, and orchestrates the per‑epoch flow (reset/update/compute/save metrics, checkpointing, and evaluation). The `Run` class in `run.py` owns the run context: it resolves folders, loads `config.yaml`, tracks config changes via `Tyaml`, and provides the CSV logging and checkpoint I/O used by the runner.
+
+
 # Launching Training
 
 Once `settings.yaml` and the run folder are ready, start training with:
@@ -36,3 +41,15 @@ python ddp.py <run-name>
 ```
 
 `<run-name>` must match the folder name you created under `run_folder`. The script loads `runner_init.py` from that folder, reads the configuration, and launches distributed training using the parameters from `settings.yaml`.
+
+# Launching Evaluation on Test Set
+
+To run evaluation on the test split, instantiate `TestRunner` in `runner_init.py` and make sure `config.yaml` includes the evaluation-specific settings (for example, dataset split, batch size, and any flags required by the test pipeline). The `Run` class will load the updated configuration and use the `TestRunner` hooks when launching the evaluation.
+
+```bash
+python ddp.py <run-name> --test <test-name>
+```
+
+# Clear Flag
+
+Use `--clear` to remove the existing run folder contents before starting. This is helpful when you want a clean slate for logs, checkpoints, and cached artifacts without manually deleting the directory.

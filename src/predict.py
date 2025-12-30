@@ -1,3 +1,8 @@
+"""
+Prediction helpers for model outputs, providing common post-processing modes
+(max arg, sigmoid, thresholding, and binary mask generation) on tensors.
+"""
+
 import torch
 
 
@@ -91,19 +96,6 @@ class Predict:
         
         return (output > threshold).float()
     
-    # def binary_predictions(self, output, threshold):
-    #     """
-    #     Get binary predictions based on the output tensor and a threshold.
-
-    #     Args:
-    #         output (torch.Tensor): The model's output tensor.
-    #         threshold (float): Threshold value to apply.
-
-    #     Returns:
-    #         torch.Tensor: Binary predictions after applying the threshold.
-    #     """
-    #     output = self.binary_sigmoid(output)    # get the probabiity for class 1
-    #     return self.threshold(output, threshold)
     
 
     def binary_predictions(self, output, threshold=None):

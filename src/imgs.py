@@ -7,6 +7,10 @@ import matplotlib.patches as mpatches
 
 
 class Img:
+    """Utility wrapper around a dataset providing tensor-to-numpy conversion, 
+    visualization in matplotlib, and helpers to inspect segmentation masks 
+    (colors, overlays, dataset length/access)."""
+
     def __init__(self, dataset):
         self.dataset = dataset
         self.mean = np.asarray(getattr(self.dataset, "norm_mean", getattr(self.dataset, "mean", (0, 0, 0))))
@@ -130,6 +134,8 @@ class Img:
         return view_img, view_label
 
     def view(self, index, figsize=(10, 5)):
+        """Display the RGB image and its segmentation label from the dataset 
+        index side by side using matplotlib."""
 
         view_img, view_label = self.__getitem__(index)
 
@@ -199,18 +205,17 @@ class Img:
 
     def print_dataset_colors(self, figsize=(4, 2)):
         """
-        Stampa i colori associati a ciascuna classe nel dataset.
-        
+        Render a legend summarizing dataset class names and their RGB colors
+        using matplotlib patches
         """
         dataset=self.dataset
         class_names = dataset.class_names
         class_colors = dataset.class_colors
         
-        # Creazione della legenda con colori e nomi delle classi
+       
         patches = [mpatches.Patch(color=[c/255.0 for c in color], label=name) 
                 for name, color in zip(class_names, class_colors)]
         
-        # Creazione della figura
         plt.figure(figsize=figsize)
         plt.legend(handles=patches, loc='upper left', title="Class Colors")
         plt.axis('off')  # Nasconde gli assi

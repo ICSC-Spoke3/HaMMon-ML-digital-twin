@@ -1,110 +1,109 @@
- 
-from torchmetrics import JaccardIndex
+import torch
 from torchmetrics.classification import MulticlassConfusionMatrix 
-from torchmetrics.classification import MulticlassAccuracy
+
 
 import logging
+logging.warning('pulire metrics_multiclass.py')
+
 
 class Metrics:
-    def __init__(self, run, rank, subset, config):
+    def __init__(self, runner, subset):
         assert isinstance(subset, str), f"subset must be a string, but got {type(subset)}"
 
-        self.run = run
-        self.rank = rank
+        self.runner = runner
+        self.run = self.runner.run
+        self.rank = self.runner.rank
         self.subset = subset
-
-        self.config = config
-
-        implemented = ['accuracy', 'iou', 'cm']
-        # control if metrics values inside config are unique
-        if len(self.config) != len(set(self.config)):
-            raise ValueError(f"Metrics for {subset} must be unique, but found duplicates in {self.config}")
-        
-        # control if metrics values inside config are implemented
-        for metric in self.config:
-            if metric not in implemented:
-                raise NotImplementedError(f"Metric {metric} is not implemented.")
 
         self.metrics = {}
 
+        if self.rank == 0:
 
-        for metric in self.config:
-            match metric:
+            # metrics_{subset}.csv
+            results_header = ["Time", "Loss", "Thresholds", "Accuracy", "Precision", "Recall", "Dice", "Error", "IoU"]
+            self.run.new_csv(f'metrics_{subset}', header=results_header)
 
-                case 'accuracy':
-                    if self.rank == 0:
-                        results_header = ["Time", "Loss", "Thresholds", "Accuracy", "Precision", "Recall", "Dice", "Error", "IoU"]
-                        self.run.new_csv(f'metrics_{subset}', header=results_header)
+            # IoU_{subset}.csv
+            iou_header = self.run.Dataset.class_names
+            self.run.new_csv(f'IoU_{subset}', header=iou_header)
 
-                    self.metrics[metric] = MulticlassAccuracy(
-                        num_classes=len(self.run.Dataset.class_names),
-                        average='micro',
-                        sync_on_compute=True
-                    ).to(self.rank)
+            # CM_{subset}.csv
+            CM_header = [str(i) for i in range(1, len(self.run.Dataset.class_names)**2 + 1)]
+            self.run.new_csv(f'CM_{subset}', header=CM_header)
 
-                case 'iou':
-                    if self.rank == 0:
-                        # Initialize CSV file for IoU results
-                        iou_header = self.run.Dataset.class_names
-                        self.run.new_csv(f'IoU_{subset}', header=iou_header)
-                    self.metrics[metric] = JaccardIndex(
-                        task='multiclass', 
-                        num_classes=len(self.run.Dataset.class_names), 
-                        average="none",
-                        sync_on_compute=True
-                    ).to(self.rank)
+        self.cm = MulticlassConfusionMatrix(
+            num_classes=len(self.run.Dataset.class_names),
+            sync_on_compute=True,
+            ignore_index=255
+        ).to(self.rank)
 
-                case 'cm':
-                    if self.rank == 0:
-                        # Initialize CSV file for confusion matrix results
-                        CM_header = [str(i) for i in range(1, len(self.run.Dataset.class_names)**2 + 1)]
-                        self.run.new_csv(f'CM_{subset}', header=CM_header)
-                    self.metrics[metric] = MulticlassConfusionMatrix(
-                        num_classes=len(self.run.Dataset.class_names),
-                        sync_on_compute=True
-                    ).to(self.rank)
-                case _:
-                    raise ValueError(f"Metric {metric} is not implemented.")
     
     def reset(self):
-        for metric in self.metrics:
-            self.metrics[metric].reset()
+        self.cm.reset()
 
     def update(self, output, target):
         pred = output.argmax(dim=1)  # Get the predicted class indices
-        for metric in self.metrics:
-            match metric:
-                case 'accuracy':
-                    self.metrics[metric].update(pred.view(-1), target.view(-1))
-                case 'iou':
-                    self.metrics[metric].update(pred, target)
-                case 'cm':
-                    self.metrics[metric].update(pred.view(-1), target.view(-1))
+        self.cm.update(pred.view(-1), target.view(-1))
+                   
 
     def compute(self):
         self.results = {}
-        for metric in self.metrics:
-            match metric:
-                case 'accuracy':
-                    self.results['accuracy'] = self.metrics[metric].compute()
-                case 'iou':
-                    self.results['iou'] = self.metrics[metric].compute()
-                case 'cm':
-                    self.results['cm'] = self.metrics[metric].compute()
+        self.results['cm'] = self.cm.compute()
         return self.results
 
     def save(self, epoch, elapsed, loss):
         if self.rank == 0:
             # Log metrics to CSV
 
-            for metric in self.metrics:
-                if metric == 'accuracy':
-                    acc = self.results['accuracy']
-                    
-                    iou = self.results['iou']
-                    self.run.log_csv(f'metrics_{self.subset}', epoch, {'Time': elapsed, 'Loss': loss,'Accuracy': acc.item(),'IoU': iou.mean().item()})
-                  
-                elif metric == 'iou':
-                    self.run.log_csv(f'IoU_{self.subset}', epoch, self.results['iou'].cpu().numpy().tolist())
-                elif metric == 'cm':
-                    self.run.log_csv(f'CM_{self.subset}', epoch, self.results['cm'].cpu().numpy().flatten().tolist())
+            m = from_cm(self.results['cm'])
+
+            self.run.log_csv(f'metrics_{self.subset}', epoch, 
+                                {'Time': elapsed, 
+                                'Loss': loss,
+                                'Accuracy': m['accuracy'].item(),
+                                'Precision': m['precision'].item(),
+                                'Recall': m['recall'].item(),
+                                'Dice': m['dice'].item(),
+                                'IoU': m['iou'].item()})
+            
+            self.run.log_csv(f'IoU_{self.subset}', epoch, m['iou_per_class'].cpu().numpy().tolist())
+            self.run.log_csv(f'CM_{self.subset}', epoch, self.results['cm'].cpu().numpy().flatten().tolist())
+
+
+
+def from_cm(cm_tensor):
+    """ Convert a confusion matrix tensor to a dictionary of metrics."""
+    assert isinstance(cm_tensor, torch.Tensor), "Input must be a torch.Tensor"
+
+    # per class lists
+    TP = cm_tensor.diag()                       
+    FP = cm_tensor.sum(dim=0) - TP
+    FN = cm_tensor.sum(dim=1) - TP
+    TN = cm_tensor.sum() - (TP + FP + FN)
+
+
+    # avoid division by zero
+    iou_per_class = TP / (TP + FP + FN).clamp(min=1e-6)
+    accuracy = TP.sum() / cm_tensor.sum()
+    precision = TP / (TP + FP).clamp(min=1e-6)
+    recall = TP / (TP + FN).clamp(min=1e-6)
+    dice = (2 * TP) / (2 * TP + FP + FN).clamp(min=1e-6)
+    weights = TP + FN
+
+    def weighted_mean(values, weights):
+        """Calculate the weighted mean of values."""
+        return (values * weights).sum() / weights.sum().clamp(min=1e-6)
+
+    return {
+        "weights": weights,
+        "iou_per_class": iou_per_class,
+        "accuracy_per_class": accuracy,
+        "precision_per_class": precision,
+        "recall_per_class": recall,
+        "dice_per_class": dice,
+        "iou": iou_per_class.mean(),
+        "accuracy": accuracy.mean(),
+        "precision": precision.mean(),
+        "recall": recall.mean(),
+        "dice": dice.mean()
+    }

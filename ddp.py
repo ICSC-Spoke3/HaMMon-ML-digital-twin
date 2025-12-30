@@ -8,7 +8,6 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 import os
 import sys
-import logging
 
 
 from src.settings import load_settings
@@ -36,7 +35,7 @@ def ddp_setup(rank, settings):
     os.environ["MASTER_PORT"] = settings["MASTER_PORT"]
 
     torch.cuda.set_device(rank)
-    
+
     init_process_group(backend=settings["backend"], rank=rank, world_size=settings["world_size"])
 
 
@@ -60,6 +59,7 @@ def set_seed(seed: int):
 def main(rank: int, run: Run, Runner, settings: dict, testname: str):
 
     logging.info(f'rank {rank} started')
+    logging.warning("SISTEMARE LE FUNZIONI CROP con padding e fill in modo omogeneo")
 
     ddp_setup(rank, settings)
     set_seed(42 + rank)  
@@ -108,5 +108,13 @@ if __name__ == "__main__":
     else:
         logging.info("Running in test mode")
         from runner_init import TestRunner as Runner
+    
+
+    GPU_COUNT = torch.cuda.device_count()
+    if settings["world_size"] == 'cuda':
+        settings["world_size"] = GPU_COUNT
+    else:
+        assert( settings["world_size"] <= GPU_COUNT), "world_size must be less than or equal to the number of available GPUs"
+   
 
     mp.spawn(main, args=(run, Runner, settings, args.test), nprocs=settings["world_size"])

@@ -1,0 +1,52 @@
+# LNGV: 4x(NVIDIA H100 80GB)
+
+EARLY_BREAK:
+  epochs: 3
+  batches: 2
+
+
+#-----------------------------------------------------------------
+dataset: "rescuenet"
+dataset_scale:  704
+dataset_stats: "rescuenet.yaml"
+
+#training
+crop_size: [128,128] # [704, 928]         
+batch_size: 1 # 8
+
+# augmentation
+scaling: [0, 0]
+angle: [-0,0]
+
+#validation
+crop_size_eval: [704, 928]       
+batch_size_eval: 1 # 24
+
+# #patcher
+# kernel: [704, 704]
+# stride: [128, 128]
+
+# optimizer
+momentum: 0.9
+weight_decay: 0.0001
+
+# LR and scheduler
+LR: 0.001
+factor: 0.5
+patience: 5
+
+# frequency weights 
+c: 1.05
+
+# training loop
+epochs: 350
+
+# test epochs
+eval_epochs: [1, 1]
+
+# metrics
+multiclass: true
+params:
+  - 'lr'
+
+notes: "use this file as an example"

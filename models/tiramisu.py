@@ -1,26 +1,26 @@
+"""Code adapted from https://github.com/bfortuner/pytorch_tiramisu 
+distributed under the MIT license. 
+Many thanks to the original author
+"""
+
+
 import torch
 import torch.nn as nn
 
 from .layers import *
 
-import time
- 
 DEBUG = False
-if DEBUG:
-    import os
-    import sys
-    parent_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
-    sys.path.append(parent_folder)
-    from src.tools import memprint
-else: 
-    memprint = lambda x : x 
+from src.tools import Tools 
+tools = Tools(DEBUG)
+memprint = tools.memprint
 
 
 class FCDenseNet(nn.Module):
     def __init__(self, in_channels=3, down_blocks=(5,5,5,5,5),
                  up_blocks=(5,5,5,5,5), bottleneck_layers=5,
-                 growth_rate=16, out_chans_first_conv=48, n_classes=12):
+                 growth_rate=16, out_chans_first_conv=48, n_classes=12, logits=False):
         super().__init__()
+        self.logits = logits
         self.down_blocks = down_blocks
         self.up_blocks = up_blocks
         cur_channels_count = 0
@@ -87,6 +87,7 @@ class FCDenseNet(nn.Module):
         self.finalConv = nn.Conv2d(in_channels=cur_channels_count,
                out_channels=n_classes, kernel_size=1, stride=1,
                    padding=0, bias=True)
+        
         self.softmax = nn.LogSoftmax(dim=1)
 
     def forward(self, x):
@@ -111,27 +112,26 @@ class FCDenseNet(nn.Module):
 
         out = self.finalConv(out)
         memprint("after final conv")
-        out = self.softmax(out)
-        memprint("after softmax")
+        if not self.logits:
+            out = self.softmax(out)
+            memprint("after softmax")
         return out
 
 
-def FCDenseNet57(n_classes):
+def FCDenseNet57(n_classes, logits=False):
     return FCDenseNet(
         in_channels=3, down_blocks=(4, 4, 4, 4, 4),
         up_blocks=(4, 4, 4, 4, 4), bottleneck_layers=4,
-        growth_rate=12, out_chans_first_conv=48, n_classes=n_classes)
+        growth_rate=12, out_chans_first_conv=48, n_classes=n_classes, logits=logits)
 
-
-def FCDenseNet67(n_classes):
+def FCDenseNet67(n_classes, logits=False):
     return FCDenseNet(
         in_channels=3, down_blocks=(5, 5, 5, 5, 5),
         up_blocks=(5, 5, 5, 5, 5), bottleneck_layers=5,
-        growth_rate=16, out_chans_first_conv=48, n_classes=n_classes)
+        growth_rate=16, out_chans_first_conv=48, n_classes=n_classes, logits=logits)
 
-
-def FCDenseNet103(n_classes):
+def FCDenseNet103(n_classes, logits=False):
     return FCDenseNet(
         in_channels=3, down_blocks=(4,5,7,10,12),
         up_blocks=(12,10,7,5,4), bottleneck_layers=15,
-        growth_rate=16, out_chans_first_conv=48, n_classes=n_classes)
+        growth_rate=16, out_chans_first_conv=48, n_classes=n_classes, logits=logits)

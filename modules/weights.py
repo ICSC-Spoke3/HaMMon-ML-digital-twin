@@ -32,18 +32,18 @@ def median_frequency_weights(n, beta=1):
     return weights 
 
 def normalize(tensor):
-    return tensor / tensor.mean()  # Normalize by the mean
+    return tensor / tensor.mean()  #
     
 
 def log_normalize(tensor):
     t = torch.log(tensor + 1e-10)  # Add a small constant to avoid log(0)
     return t / t.mean()  # Normalize by the mean
 
-def norm_ifw(n, beta=1):
-    return normalize(inverse_frequency_weights(n, beta))
+def norm_ifw(n):
+    return normalize(inverse_frequency_weights(n, beta=1)) # beta has no effect, left only for retrocompatibility
 
-def norm_mfw(n, beta=1):
-    return normalize(median_frequency_weights(n, beta))
+def norm_mfw(n):
+    return normalize(median_frequency_weights(n, beta=1)) # beta has no effect, left only for retrocompatibility
 
 def log_norm_ifw(n, beta=1):
     return log_normalize(inverse_frequency_weights(n, beta))

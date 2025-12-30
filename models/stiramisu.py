@@ -1,25 +1,25 @@
+"""Code adapted from https://github.com/bfortuner/pytorch_tiramisu 
+distributed under the MIT license. 
+Many thanks to the original author
+"""
+
 import torch
 import torch.nn as nn
 
 from .layers import *
 
-
 DEBUG = False
-if DEBUG:
-    import os
-    import sys
-    parent_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
-    sys.path.append(parent_folder)
-    from src.tools import memprint
-else: 
-    memprint = lambda x : x 
+from src.tools import Tools 
+tools = Tools(DEBUG)
+memprint = tools.memprint
 
 
 class FCDenseNet(nn.Module):
     def __init__(self, in_channels=3, down_blocks=(5,5,5,5,5),
                  up_blocks=(5,5,5,5,5), bottleneck_layers=5,
-                 growth_rate=16, out_chans_first_conv=48, n_classes=12):
+                 growth_rate=16, out_chans_first_conv=48, n_classes=12, logits=False):
         super().__init__()
+        self.logits = logits
         self.down_blocks = down_blocks
         self.up_blocks = up_blocks
         cur_channels_count = 0
@@ -86,7 +86,7 @@ class FCDenseNet(nn.Module):
         self.finalConv = nn.Conv2d(in_channels=cur_channels_count,
                out_channels=n_classes, kernel_size=1, stride=1,
                    padding=0, bias=True)
-        self.sigmoid = nn.Sigmoid()
+        self.softmax = nn.LogSoftmax(dim=1)
 
     def forward(self, x):
         out = self.firstconv(x)
@@ -95,6 +95,7 @@ class FCDenseNet(nn.Module):
         for i in range(len(self.down_blocks)):
             out = self.denseBlocksDown[i](out)
             memprint("down: "+str(i)+" after dense block")
+            #time.sleep(200)
             skip_connections.append(out)
             out = self.transDownBlocks[i](out)
             memprint("down: "+str(i)+" after max pool")
@@ -109,28 +110,41 @@ class FCDenseNet(nn.Module):
 
         out = self.finalConv(out)
         memprint("after final conv")
-        out = self.sigmoid(out)
-        out = out.squeeze(1)
+        if not self.logits:
+            out = self.softmax(out)
         memprint("after softmax")
         return out
 
+class sFCDenseNet(nn.Module):
+    def __init__(self, **kwargs):
+        super(sFCDenseNet, self).__init__()
+        base_model = FCDenseNet(**kwargs)
+        self.model = nn.SyncBatchNorm.convert_sync_batchnorm(base_model)
 
-def FCDenseNet57(n_classes):
-    return FCDenseNet(
+    def forward(self, x):
+        return self.model(x)
+
+def sFCDenseNet57(n_classes, logits=False):
+    return sFCDenseNet(
         in_channels=3, down_blocks=(4, 4, 4, 4, 4),
         up_blocks=(4, 4, 4, 4, 4), bottleneck_layers=4,
-        growth_rate=12, out_chans_first_conv=48, n_classes=n_classes)
+        growth_rate=12, out_chans_first_conv=48, n_classes=n_classes, logits=logits)
 
-
-def FCDenseNet67(n_classes):
-    return FCDenseNet(
+def sFCDenseNet67(n_classes, logits=False):
+    return sFCDenseNet(
         in_channels=3, down_blocks=(5, 5, 5, 5, 5),
         up_blocks=(5, 5, 5, 5, 5), bottleneck_layers=5,
-        growth_rate=16, out_chans_first_conv=48, n_classes=n_classes)
+        growth_rate=16, out_chans_first_conv=48, n_classes=n_classes, logits=logits)
 
-
-def FCDenseNet103(n_classes):
-    return FCDenseNet(
+def sFCDenseNet103(n_classes, logits=False):
+    return sFCDenseNet(
         in_channels=3, down_blocks=(4,5,7,10,12),
         up_blocks=(12,10,7,5,4), bottleneck_layers=15,
-        growth_rate=16, out_chans_first_conv=48, n_classes=n_classes)
+        growth_rate=16, out_chans_first_conv=48, n_classes=n_classes, logits=logits)
+
+def weights_init(m):
+    if isinstance(m, nn.Conv2d):
+        nn.init.kaiming_uniform_(m.weight, nonlinearity='relu')
+        if m.bias is not None:     
+            nn.init.zeros_(m.bias)
+

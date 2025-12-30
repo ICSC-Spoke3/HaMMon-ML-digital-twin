@@ -4,8 +4,9 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 DEBUG=logging.getLogger().isEnabledFor(logging.DEBUG)
 
 import torch
+import torch.distributed as dist
 
-import sys
+
 
 from src.runner_set_objects import SetObjects
 from src.runner_set_metrics import SetMetrics
@@ -13,18 +14,16 @@ from src.tools import Tools
 from src.run import Run
 
 
-# Set to None during actual runs
-EARLY_BREAK = None
-EARLY_BREAK = 1
-
-
 class Runner(SetMetrics, SetObjects):
-    def __init__(self, run: Run, rank):
+    def __init__(self, run: Run, rank, eval: bool = False):
         assert isinstance(run, Run), "run must be an instance of Run class"
         assert isinstance(rank, int), "rank must be an integer"
         self.run = run
         self.rank = rank
         self.t = Tools(DEBUG=DEBUG)
+        self.eval = eval
+
+        self.EARLY_BREAK = check_early_break(self.run.config.get('EARLY_BREAK', None))
       
 
         SetMetrics.__init__(self, run, rank)
@@ -37,8 +36,10 @@ class Runner(SetMetrics, SetObjects):
 
     def epoch_train(self, epoch):
         assert isinstance(epoch, int), "epoch must be an integer"
+        self.eval = False  
 
         since = time.time()
+        self.model.train()
 
         self.metrics['train'].reset()  # Reset metrics for the training epoch
   
@@ -48,7 +49,7 @@ class Runner(SetMetrics, SetObjects):
 
         for i, data in enumerate(self.dataloader_train): 
 
-            if EARLY_BREAK is not None and i >= EARLY_BREAK:
+            if self.EARLY_BREAK is not None and i >= self.EARLY_BREAK['batches']:
                     logging.warning(f"rank {self.rank}: Training Early break at batch {i}")
                     break
 
@@ -78,19 +79,28 @@ class Runner(SetMetrics, SetObjects):
             del inputs, targets, output, loss
 
         trn_loss /= len(self.dataloader_train)
-        self.scheduler.step(trn_loss)
+
+        # Sync and aggregate the loss across all processes
+        aggr_loss_tensor = torch.tensor(trn_loss, device=f"cuda:{self.rank}")  # use the correct device
+        dist.all_reduce(aggr_loss_tensor, op=dist.ReduceOp.SUM)
+        trn_loss_mean = aggr_loss_tensor.item() / dist.get_world_size()
+        logging.warning(f"rank {self.rank}: trn_loss: {trn_loss} trn_loss_mean: {trn_loss_mean}")
+
+        self.scheduler.step(trn_loss_mean)
 
         self.metrics['train'].compute()
 
         elapsed = time.time() - since
 
-        return elapsed, trn_loss
+        return elapsed, trn_loss_mean
 
 
 
     def epoch_eval(self, epoch, idx):
         assert isinstance(epoch, int), "epoch must be an integer"
         assert isinstance(idx, str), "idx must be a string"
+
+        self.eval = True
 
         since = time.time()
         self.model.eval()
@@ -106,10 +116,10 @@ class Runner(SetMetrics, SetObjects):
         with torch.no_grad():       
             for i, data in enumerate(self.dataloader_eval):
 
-                if EARLY_BREAK is not None and i >= EARLY_BREAK:
+                if self.EARLY_BREAK is not None and i >= self.EARLY_BREAK['batches']:
                         logging.warning(f"rank {self.rank}: Eval Early break at batch {i}")
                         break
-                
+                    
 
                 inputs = data[0].to(self.rank)
                 targets = data[1].to(self.rank)
@@ -130,20 +140,36 @@ class Runner(SetMetrics, SetObjects):
                 output = output.detach()  # Detach output to avoid tracking gradients
                 self.metrics[idx].update(output, targets)
 
+
+
                 del inputs, targets, output, loss
 
         val_loss /= len(self.dataloader_eval)
+
+        # Sync and aggregate the loss across all processes
+        aggr_loss_tensor = torch.tensor(val_loss, device=f"cuda:{self.rank}")  # use the correct device
+        dist.all_reduce(aggr_loss_tensor, op=dist.ReduceOp.SUM)
+        val_loss_mean = aggr_loss_tensor.item() / dist.get_world_size()
+        logging.warning(f"rank {self.rank}: val_loss: {val_loss} val_loss_mean: {val_loss_mean}")
+
 
         self.metrics[idx].compute()# Update validation metrics
 
         elapsed = time.time() - since
 
-        return elapsed, val_loss 
+        return elapsed, val_loss_mean
 
 
     def loop(self):
 
+        self.set_metrics('train')
+        self.set_metrics('val')
+
         for epoch in range(self.lew + 1, self.run.config["epochs"] + 1):
+
+            if self.EARLY_BREAK is not None and epoch >= self.EARLY_BREAK['epochs']:
+                    logging.info(f"rank {self.rank}: Early break at epoch {epoch}")
+                    break
 
             logging.info(f'rank {self.rank}: Starting Training Epoch: {epoch}')
 
@@ -171,22 +197,22 @@ class Runner(SetMetrics, SetObjects):
             if self.rank == 0:
                 self.metrics['val'].save(epoch, elapsedv, lossv)
 
-            if EARLY_BREAK is not None and epoch >= EARLY_BREAK:
-                    logging.info(f"rank {self.rank}: Early break at epoch {epoch}")
-                    break
 
     def loop_eval(self, idx='test'):
         assert isinstance(idx, str), "idx must be a string"
+
+        self.set_metrics(idx)
+        
 
         epochs = tuple(self.run.config["eval_epochs"])
 
         assert len(epochs) == 2, "eval_epochs must be a tuple of two integers (start, end)"
 
-        if idx not in self.metrics:
-            raise ValueError(f"Test set {idx} missing in config.yaml")
-
-
         for epoch in range(epochs[0], epochs[1] + 1):
+
+            if self.EARLY_BREAK is not None and epoch >= self.EARLY_BREAK['epochs']:
+                logging.info(f"rank {self.rank}: Early break at epoch {epoch}")
+                break
 
             self._set_model(epoch=epoch)
 
@@ -199,4 +225,13 @@ class Runner(SetMetrics, SetObjects):
 
 
 
-    
+def check_early_break(EARLY_BREAK):
+    if EARLY_BREAK is None:
+        return None
+    else:
+        if "epochs" in EARLY_BREAK and "batches" in EARLY_BREAK:
+            assert isinstance(EARLY_BREAK['epochs'], int), "EARLY_BREAK['epochs'] must be an integer"
+            assert isinstance(EARLY_BREAK['batches'], int), "EARLY_BREAK['batches'] must be an integer"
+            assert EARLY_BREAK['epochs'] > 0, "EARLY_BREAK['epochs'] must be greater than 0"
+            assert EARLY_BREAK['batches'] > 0, "EARLY_BREAK['batches'] must be greater than 0"
+        return EARLY_BREAK

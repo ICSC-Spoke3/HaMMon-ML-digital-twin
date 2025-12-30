@@ -78,8 +78,6 @@ class Patcher:
         k = self.kernel
         s = self.stride
 
-        # print(f'before H: {H}, k[0]: {k[0]}, s[0]: {s[0]}')
-
         d = H -k[0], W - k[1]
 
 

@@ -1,5 +1,6 @@
 from pathlib import Path
 import yaml
+import logging
 
 
 def load_settings() -> dict:
@@ -22,5 +23,7 @@ def load_settings() -> dict:
 
     if not isinstance(settings, dict):
         raise ValueError(f"{settings_path} does not contain a valid YAML dictionary.")
+    
+    logging.warning(f"checking on settings.yaml must be implemented")
 
     return settings

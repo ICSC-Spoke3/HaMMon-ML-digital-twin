@@ -1,3 +1,8 @@
+"""Code adapted from https://github.com/BinaLab/RescueNet-A-High-Resolution-Post-Disaster-UAV-Dataset-for-Semantic-Segmentation
+distributed under the MIT license. 
+Many thanks to the original author
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
