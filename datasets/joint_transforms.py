@@ -1,76 +1,97 @@
 from __future__ import division
-import torch
 import math
 import random
 from PIL import Image, ImageOps
-import numpy as np
 import numbers
 import types
 
-class JointRandomScale(object):
+# joint data-augmentation transforms for paired PIL images (image + mask).
+
+class JointScale:
     """
-    Rescales the input PIL.Images to a randomly chosen size between two thresholds.
+    Rescales a pair of PIL.Images (image and mask) to a target size.
     
-    The size of the smaller edge will be scaled to 'chosen_size'.
-    Different interpolation methods are applied to different images:
-      - BILINEAR for imgs[0]
-      - NEAREST for imgs[1]
-    
-    Attributes:
-        min_size (int): Minimum threshold value for resizing.
-        max_size (int): Maximum threshold value for resizing.
+    You can specify either both width and height, or just one of them (proportional resize).
+    Applies:
+        - BILINEAR interpolation for the first image (e.g. RGB image)
+        - NEAREST interpolation for the second image (e.g. segmentation mask)
     """
+
+    def __init__(self, w=None, h=None):
+        if h is None and w is None:
+            raise ValueError("At least one of h or w must be specified.")
+        self.target_h = h
+        self.target_w = w
+
+    def __call__(self, imgs):
+        img = imgs[0]
+        w, h = img.size  # PIL: size = (width, height)
+
+        # Compute target size if only one dimension is provided
+        if self.target_h is None:
+            target_w = self.target_w
+            target_h = int(target_w * h / w)
+        elif self.target_w is None:
+            target_h = self.target_h
+            target_w = int(target_h * w / h)
+        else:
+            target_h = self.target_h
+            target_w = self.target_w
+
+        resized_imgs = [
+            imgs[0].resize((target_w, target_h), Image.BILINEAR),
+            imgs[1].resize((target_w, target_h), Image.NEAREST)
+        ]
+        return resized_imgs
     
-    def __init__(self, min_size, max_size): 
+class JointRandomScale:
+    """
+    Rescales input PIL.Images to a randomly chosen height
+    between min_size and max_size. Width is adjusted to preserve aspect ratio.
+
+    Uses JointScale internally to perform the resize.
+    """
+
+    def __init__(self, min_size, max_size):
         self.min_size = min_size
         self.max_size = max_size
 
     def __call__(self, imgs):
-        self.chosen_size = random.randint(self.min_size, self.max_size)
-        w, h = imgs[0].size
-        if (w <= h and w == self.chosen_size) or (h <= w and h == self.chosen_size):
-            return imgs
-        
-        if w < h:
-            ow = self.chosen_size
-            oh = int(self.chosen_size * h / w)
-        else:
-            oh = self.chosen_size
-            ow = int(self.chosen_size * w / h)
-        
-        resized_imgs = [
-            imgs[0].resize((ow, oh), Image.BILINEAR),
-            imgs[1].resize((ow, oh), Image.NEAREST)
-        ]
-        
-        return resized_imgs
+        chosen_height = random.randint(self.min_size, self.max_size)
+        scale = JointScale(h=chosen_height)
+        return scale(imgs)
 
-
-class JointScale(object):
-    """Rescales the input PIL.Image to the given 'size'.
-    'size' will be the size of the smaller edge.
-    For example, if height > width, then image will be
-    rescaled to (size * height / width, size)
-    size: size of the smaller edge
-    interpolation: Default: PIL.Image.BILINEAR
+class JointRotate:
+    """
+    Rotates a pair of PIL.Images (image and mask) by the specified angle.
+    Applies:
+        - BILINEAR interpolation for the first image (e.g. RGB image)
+        - NEAREST interpolation for the second image (e.g. segmentation mask)
     """
 
-    def __init__(self, size, interpolation="BILINEAR"):
-        self.size = size
-        self.interpolation = getattr(Image, interpolation)
+    def __init__(self, angle):
+        self.angle = angle
 
     def __call__(self, imgs):
-        w, h = imgs[0].size
-        if (w <= h and w == self.size) or (h <= w and h == self.size):
-            return imgs
-        if w < h:
-            ow = self.size
-            oh = int(self.size * h / w)
-            return [img.resize((ow, oh), self.interpolation) for img in imgs]
-        else:
-            oh = self.size
-            ow = int(self.size * w / h)
-            return [img.resize((ow, oh), self.interpolation) for img in imgs]
+        rotated_imgs = [
+            imgs[0].rotate(self.angle, resample=Image.BILINEAR, expand=True),
+            imgs[1].rotate(self.angle, resample=Image.NEAREST, expand=True)
+        ]
+        return rotated_imgs
+    
+class JointRandomRotate:
+    """
+    Rotates a pair of PIL.Images (image and mask) by a random angle between min_angle and max_angle.
+    Uses JointRotate internally.
+    """
+
+    def __init__(self, min_angle, max_angle):
+        self.min_angle = min_angle
+        self.max_angle = max_angle
+
+    def __call__(self, imgs):
+        angle = random.uniform(self.min_angle, self.max_angle)
+        return JointRotate(angle)(imgs)
 
 
 class JointCenterCrop(object):
@@ -91,31 +112,6 @@ class JointCenterCrop(object):
         x1 = int(round((w - tw) / 2.))
         y1 = int(round((h - th) / 2.))
         return [img.crop((x1, y1, x1 + tw, y1 + th)) for img in imgs]
-
-
-class JointPad(object):
-    """Pads the given PIL.Image on all sides with the given "pad" value"""
-
-    def __init__(self, padding, fill=0):
-        assert isinstance(padding, numbers.Number)
-        assert isinstance(fill, numbers.Number) or isinstance(fill, str) or isinstance(fill, tuple)
-        self.padding = padding
-        self.fill = fill
-
-    def __call__(self, imgs):
-        return [ImageOps.expand(img, border=self.padding, fill=self.fill) for img in imgs]
-
-
-class JointLambda(object):
-    """Applies a lambda as a transform."""
-
-    def __init__(self, lambd):
-        assert isinstance(lambd, types.LambdaType)
-        self.lambd = lambd
-
-    def __call__(self, imgs):
-        return [self.lambd(img) for img in imgs]
-
 
 class JointRandomCrop(object):
     """Crops the given list of PIL.Image at a random location to have a region of
@@ -164,6 +160,31 @@ class FixedUpperLeftCrop(object):
 
         return [img.crop((0, 0, tw, th)) for img in imgs]  # Crop from the top-left corner
 
+class JointPad(object):
+    """Pads the given PIL.Image on all sides with the given "pad" value"""
+
+    def __init__(self, padding, fill=0):
+        assert isinstance(padding, numbers.Number)
+        assert isinstance(fill, numbers.Number) or isinstance(fill, str) or isinstance(fill, tuple)
+        self.padding = padding
+        self.fill = fill
+
+    def __call__(self, imgs):
+        return [ImageOps.expand(img, border=self.padding, fill=self.fill) for img in imgs]
+
+
+class JointLambda(object):
+    """Applies a lambda as a transform."""
+
+    def __init__(self, lambd):
+        assert isinstance(lambd, types.LambdaType)
+        self.lambd = lambd
+
+    def __call__(self, imgs):
+        return [self.lambd(img) for img in imgs]
+
+
+
 class JointRandomRotate90(object):
     """Randomly rotates the given list of PIL.Image by 90 degrees with a probability of 0.5
     """
@@ -172,6 +193,21 @@ class JointRandomRotate90(object):
         if random.random() < 0.5:
             return [img.transpose(Image.ROTATE_90) for img in imgs]
         return imgs
+
+class JointRandomRotateStep90(object):
+    def __init__(self):
+        self.rotation_map = {
+            0: None,
+            90: Image.ROTATE_90,
+            180: Image.ROTATE_180,
+            270: Image.ROTATE_270,
+        }
+
+    def __call__(self, imgs):
+        angle = random.choice([0, 90, 180, 270])
+        if self.rotation_map[angle] is None:
+            return imgs
+        return [img.transpose(self.rotation_map[angle]) for img in imgs]
 
 class JointRandomHorizontalFlip(object):
     """Randomly horizontally flips the given list of PIL.Image with a probability of 0.5

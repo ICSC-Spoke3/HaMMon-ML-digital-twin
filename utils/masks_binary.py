@@ -39,7 +39,7 @@ def main():
     output_dir = args.input_folder.parent / f"binary-{args.output_name}"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    process_folder(args.input_folder, args.output_name, args.label_index)
+    process_folder(args.input_folder, output_dir, args.label_index)
 
 if __name__ == "__main__":
     main()

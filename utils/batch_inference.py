@@ -1,42 +1,53 @@
-# TO ADD ERROR HANDLING
+"""
+Runs batch segmentation inference over an image folder and saves the predicted masks.
+
+Disclaimer: this script is intended only to validate the Science Gateway pipeline;
+it is not a production-grade inference entrypoint. Error handling is not managed.
+Model selection, weights path, dataset choice, and other runtime settings should be
+exposed as command-line options rather than hardcoded.
+
+example usage: 
+> python batch_inference.py /input_folder /output_folder
+
+"""
+
 
 import sys
 import os
 root_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-sys.path.append(root_dir)
+sys.path.insert(0, str(root_dir)) 
 from pathlib import Path
 import importlib
 import argparse
+import time
 
 import torch
 from PIL import Image
 
-from models import tiramisu_nclasses
-from src import tools
+
+from src.tools import Tools
+from src.predict import Predict
 
 from datasets.inference_dataset import InferenceDataset
-from datasets.floodnet import Dataset
 
-import time
+tools = Tools(DEBUG=True)
+predict = Predict(kind='max')
 
+# -------------------------------------------------------  TO HANDLE AS OPTIONS
 
-# -------------------------------------------------------  OPTIONS
-dataset_model = 'rescuenet'
-# weights_file = Path(root_dir) / '.weights' / 'fn_tl' / 'weights-200.pth'
-weights_file = Path(root_dir) / '.weights' / 'adam_sched' / 'weights-399.pth'
-one_img = 3 # GB , memory required to compute the model with one image
 input_device = 'auto' # 'cpu', 'gpu' 'auto'
+dataset_model = 'rescuenet'
 
+## model 
+from models.att_unet import sAttU_Net
+from models.stiramisu import sFCDenseNet103
+weights_file = Path(root_dir) / '.weights' / 'stiramisu-rn.pth'
+one_img = 3 # GB , memory required to compute the model with one image
 
+## Dataset (to get classes, mean, std)
 module = importlib.import_module(f"datasets.{dataset_model}")
 Dataset = getattr(module, 'Dataset')
-
-# -------------------------------------------------------  PATHS
-# input_folder='/outputs/airflow_data/floodnet/img-700'
-# output_folder = '/outputs/airflow_data/outputs'
-
-# output_folder = Path(output_folder)
-# output_folder.mkdir(parents=True, exist_ok=True)
+Dataset.stats_from_yaml(f'{dataset_model}.yaml')
 
 
 # -------------------------------------------------------  FUNCTIONS
@@ -92,9 +103,9 @@ def main():
 
     print(f"Processing device: {device}, Batch size: {batch_size}, Dataset size: {len(infererence_dataset)}")
 
-    weights = torch.load(weights_file, map_location=device)
-    model = tiramisu_nclasses.FCDenseNet103(len(infererence_dataset.class_names)).to(device)
-    model.load_state_dict(weights['state_dict'])
+    weights = torch.load(weights_file, map_location=device)['data']
+    model = sFCDenseNet103(len(infererence_dataset.class_names)).to(device)
+    model.load_state_dict(weights)
 
     dataloader = torch.utils.data.DataLoader(infererence_dataset, batch_size=batch_size, shuffle=False)
 
@@ -111,7 +122,7 @@ def main():
             batch = batch.to(device)
             output = model(batch)
 
-            pred = tools.get_predictions(output)
+            pred = predict(output)
 
             for i, t in enumerate(pred):
                 path = infererence_dataset.imgs[indexes[i]]
@@ -139,4 +150,3 @@ if __name__ == '__main__':
     main()
 
 
-# python batch_inference.py /outputs/airflow_data/floodnet/img-700 /outputs/airflow_data/outputs

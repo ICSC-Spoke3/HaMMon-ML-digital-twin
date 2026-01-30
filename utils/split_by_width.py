@@ -4,7 +4,6 @@ from pathlib import Path
 from PIL import Image, UnidentifiedImageError
 import shutil
 
-SOURCE_DIR = Path("/outputs/airflow_data/floodnet/img")
 
 def get_image_size(path):
     try:
@@ -30,4 +29,15 @@ def split_images_by_width(source_folder: Path):
             print(f"Skipping {image_path}: {e}")
 
 if __name__ == "__main__":
-    split_images_by_width(SOURCE_DIR)
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Split images into folders by width."
+    )
+    parser.add_argument(
+        "source_dir",
+        type=Path,
+        help="Directory containing images to split by width.",
+    )
+    args = parser.parse_args()
+    split_images_by_width(args.source_dir)

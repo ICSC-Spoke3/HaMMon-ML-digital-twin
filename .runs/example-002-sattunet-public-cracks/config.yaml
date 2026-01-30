@@ -1,0 +1,56 @@
+# early break for testing purposes
+EARLY_BREAK:
+  epochs: 3
+  batches: 2
+
+# datasets and loaders
+dataset: "cracks"  
+dataset_folder: "public-cracks"
+dataset_stats: "cracks-public.yaml"   # should be the one of the pretrained weights
+batch_size: 1 # 12
+batch_size_eval: 1 #  48
+
+#patcher
+# kernel: [64, 64]
+# stride: [32, 32]
+
+# optimizer
+betas: [0.9, 0.999]
+eps: 0.00000001
+weight_decay: 0.0001
+
+# LR and scheduler
+LR: 0.001
+factor: 0.5
+patience: 5
+
+# loss function
+c: 0.50    # focal component of the loss function (0 <= c <= 1)
+beta: 1  # exp factor for inverse frequency weights (0 <= beta <= 1)
+gamma: 2.0  # focal loss gamma
+
+# photometric augmentation
+brightness: [0.9, 1.1]
+contrast: 0.2
+saturation: 0.2
+
+# training loop
+epochs: 150
+
+# test epochs
+eval_epochs: [50, 50]
+
+# metrics
+multiclass: false
+params:
+  - 'lr'
+  - 'loss_focal'
+  - 'loss_dice'
+  - 'loss'
+
+# thresholds: null # [.3,.6,.9] # leave empty for default values
+thresholds: [.1,.2,.3,.4,.5,.6,.7,.8,.9, .95, .99, .995, .999, .9995, .9999] # [.3,.6,.9] # leave empty for default values
+
+notes: "for testing purposes"
+
+

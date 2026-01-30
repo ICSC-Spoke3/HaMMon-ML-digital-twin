@@ -1,4 +1,13 @@
-memo.txt
-__pycache__/
-.private-HaMMon-ML-digital-twin
+__pycache__
+*~
+*.pyc
+*.h5
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+.weights
+.data
+settings.yaml
+nohup.output
+**/.logs/
+condaenv.*.requirements.txt
 

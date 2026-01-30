@@ -1,0 +1,27 @@
+# ## vecchio dataset solo egor
+
+# # RGB STATS
+# # Mean RGB values before preprocessing: R: 137.7835926699948, G: 134.38070426544587, B: 130.24297212873185
+# mean: [137.7835926699948, 134.38070426544587, 130.24297212873185]
+# # Standard Deviation RGB values before preprocessing: R: 62.26417298039667, G: 61.23516460547714, B: 62.89153697386421
+# std: [62.26417298039667, 61.23516460547714, 62.89153697386421]
+# # # NUMBER OF IMAGES EACH LABEL APPEARS IN:
+# # Number of images each label appears in: tensor([770, 637])
+# image_count: [770, 637]
+# # # NUMBER OF PIXELS FOR EACH LABEL:
+# # Number of pixels for each label: tensor([200872325,    978555])
+# pixel_count: [200872325,    978555]
+
+
+# Photos ="Dataset_2D_Train_Undersampled_No_CastelNuovo_AreaGrande_CentroItalia"
+
+# Number of images each label appears in: tensor([882, 802])
+image_count: [882, 802]
+# Number of pixels for each label: tensor([229403478,   1807530])
+pixel_count: [229403478,   1807530]
+
+# Mean RGB values before preprocessing: R: 142.03664235571344, G: 137.3459050877024, B: 132.56571885625792
+mean: [142.03664235571344, 137.3459050877024, 132.56571885625792]
+
+# Standard Deviation RGB values before preprocessing: R: 59.42637880614622, G: 57.83355054304946, B: 59.30862947817958
+std: [59.42637880614622, 57.83355054304946, 59.30862947817958]
